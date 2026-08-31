@@ -300,7 +300,10 @@ def run_model_smoke(paths: BundlePaths, data_root: Path) -> None:
             model=provider,
         ).create_case("Synthetic smoke test: Wi-Fi disconnects but Ethernet remains stable")
         if not case.assessment:
-            raise RuntimeError("The bundled model did not return a validated assessment")
+            detail = case.last_error or "no validation detail was recorded"
+            raise RuntimeError(
+                f"The bundled model did not return a validated assessment: {detail}"
+            )
     finally:
         stop_model(process, log_stream)
 

@@ -22,13 +22,13 @@ GENERATION_ONLY_SCHEMA_KEYS = {
 }
 
 
-def llama_generation_schema(value: object) -> object:
+def llama_generation_schema(value: object, *, _property_map: bool = False) -> object:
     """Remove grammar-expensive bounds; Pydantic validates the full schema afterward."""
     if isinstance(value, dict):
         return {
-            key: llama_generation_schema(item)
+            key: llama_generation_schema(item, _property_map=key == "properties")
             for key, item in value.items()
-            if key not in GENERATION_ONLY_SCHEMA_KEYS
+            if _property_map or key not in GENERATION_ONLY_SCHEMA_KEYS
         }
     if isinstance(value, list):
         return [llama_generation_schema(item) for item in value]

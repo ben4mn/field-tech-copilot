@@ -80,8 +80,8 @@ jobs:
             Get-Content "$DataPath/logs/llama-server.log" -Tail 200 -ErrorAction SilentlyContinue
             throw "Packaged offline model smoke test failed"
           }
-          & dist/FieldTechCopilot/FieldTechCopilot.exe --self-test --data-dir $DataPath
-          if ($LASTEXITCODE -ne 0) { throw "Windowless packaged app self-test failed" }
+          $WindowlessSelfTest = Start-Process -FilePath dist/FieldTechCopilot/FieldTechCopilot.exe -ArgumentList @("--self-test", "--data-dir", $DataPath) -Wait -PassThru
+          if ($WindowlessSelfTest.ExitCode -ne 0) { throw "Windowless packaged app self-test failed" }
 
       - name: Install Inno Setup
         shell: pwsh
@@ -111,21 +111,31 @@ jobs:
           $InstallPath = Join-Path $env:RUNNER_TEMP "FieldTechCopilotInstalled"
           $DataPath = Join-Path $env:RUNNER_TEMP "fieldtech-installed-selftest"
           $InstallLog = Join-Path $env:RUNNER_TEMP "fieldtech-install.log"
-          & $Installer.FullName /SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$InstallPath" "/LOG=$InstallLog"
-          if ($LASTEXITCODE -ne 0) {
-            $InstallerExitCode = $LASTEXITCODE
+          $InstallProcess = Start-Process -FilePath $Installer.FullName -ArgumentList @(
+            "/SP-",
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART",
+            "/DIR=$InstallPath",
+            "/LOG=$InstallLog"
+          ) -Wait -PassThru
+          if ($InstallProcess.ExitCode -ne 0) {
             Get-Content $InstallLog -ErrorAction SilentlyContinue
-            throw "Silent installation failed with exit code $InstallerExitCode"
+            throw "Silent installation failed with exit code $($InstallProcess.ExitCode)"
           }
-          & "$InstallPath\FieldTechCopilot.exe" --self-test --data-dir $DataPath
-          if ($LASTEXITCODE -ne 0) { throw "Installed application self-test failed" }
+          $InstalledSelfTest = Start-Process -FilePath "$InstallPath\FieldTechCopilot.exe" -ArgumentList @("--self-test", "--data-dir", $DataPath) -Wait -PassThru
+          if ($InstalledSelfTest.ExitCode -ne 0) { throw "Installed application self-test failed" }
           if (Get-ChildItem $InstallPath -Recurse -Include *.db,*.db-wal,*.db-shm) {
             throw "Mutable case data was written inside the installation directory"
           }
           $Marker = Join-Path $DataPath "preserve-on-uninstall.txt"
           Set-Content -Path $Marker -Value "preserve"
-          & "$InstallPath\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
-          if ($LASTEXITCODE -ne 0) { throw "Silent uninstall failed" }
+          $UninstallProcess = Start-Process -FilePath "$InstallPath\unins000.exe" -ArgumentList @(
+            "/VERYSILENT",
+            "/SUPPRESSMSGBOXES",
+            "/NORESTART"
+          ) -Wait -PassThru
+          if ($UninstallProcess.ExitCode -ne 0) { throw "Silent uninstall failed" }
           if (-not (Test-Path $Marker)) { throw "Uninstall removed user data" }
 
       - name: Generate checksums and enforce GitHub release budget

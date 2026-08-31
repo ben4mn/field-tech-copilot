@@ -6,6 +6,34 @@ from fieldtech.core.models import Assessment, DiagnosticCase
 from fieldtech.knowledge.store import KnowledgeSnippet
 from fieldtech.providers.prompt import SYSTEM_PROMPT, build_context
 
+GENERATION_ONLY_SCHEMA_KEYS = {
+    "default",
+    "description",
+    "examples",
+    "format",
+    "maxItems",
+    "maxLength",
+    "maximum",
+    "minItems",
+    "minLength",
+    "minimum",
+    "pattern",
+    "title",
+}
+
+
+def llama_generation_schema(value: object) -> object:
+    """Remove grammar-expensive bounds; Pydantic validates the full schema afterward."""
+    if isinstance(value, dict):
+        return {
+            key: llama_generation_schema(item)
+            for key, item in value.items()
+            if key not in GENERATION_ONLY_SCHEMA_KEYS
+        }
+    if isinstance(value, list):
+        return [llama_generation_schema(item) for item in value]
+    return value
+
 
 class LlamaCppDiagnosticModel:
     """Adapter for llama.cpp's loopback-only OpenAI-compatible server."""
@@ -62,7 +90,7 @@ class LlamaCppDiagnosticModel:
                 "json_schema": {
                     "name": "diagnostic_assessment",
                     "strict": True,
-                    "schema": Assessment.model_json_schema(),
+                    "schema": llama_generation_schema(Assessment.model_json_schema()),
                 },
             },
             "chat_template_kwargs": {"enable_thinking": False},

@@ -19,6 +19,9 @@ def test_llama_cpp_health_and_structured_assessment() -> None:
             return httpx.Response(200, json={"data": [{"id": "fieldtech-lite"}]})
         payload = json.loads(request.content)
         assert payload["response_format"]["type"] == "json_schema"
+        generation_schema = payload["response_format"]["json_schema"]["schema"]
+        assert "maxLength" not in json.dumps(generation_schema)
+        assert generation_schema["required"] == ["summary", "technician_message"]
         assert payload["chat_template_kwargs"] == {"enable_thinking": False}
         assert payload["reasoning_effort"] == "none"
         assert payload["temperature"] == 0.7

@@ -37,7 +37,8 @@ jobs:
         run: uv run pyinstaller --noconfirm --clean packaging/windows/FieldTechCopilot.spec
 
       - name: Cache pinned upstream payloads
-        uses: actions/cache@v4
+        id: payload-cache
+        uses: actions/cache/restore@v4
         with:
           path: build/windows-downloads
           key: windows-payload-${{ hashFiles('packaging/windows/bundle-lock.json') }}
@@ -45,6 +46,13 @@ jobs:
       - name: Add pinned offline payload
         shell: pwsh
         run: packaging/windows/prepare-bundle.ps1
+
+      - name: Save pinned upstream payload cache
+        if: steps.payload-cache.outputs.cache-hit != 'true'
+        uses: actions/cache/save@v4
+        with:
+          path: build/windows-downloads
+          key: windows-payload-${{ hashFiles('packaging/windows/bundle-lock.json') }}
 
       - name: Record Python dependency inventory
         shell: pwsh

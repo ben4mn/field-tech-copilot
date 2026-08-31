@@ -72,33 +72,36 @@ if (-not (Test-Path $VsWherePath)) {
 }
 $VisualStudioPath = & $VsWherePath `
     -latest `
+    -version "[17.0,18.0)" `
     -products * `
-    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+    -requires `
+        Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+        Microsoft.VisualStudio.Component.VC.Redist.14.Latest `
     -property installationPath
 if (-not $VisualStudioPath) {
-    throw "Visual Studio with the x64 C++ tools is required to build Field Kit Lite"
+    throw "Visual Studio 2022 with the x64 C++ tools and redistributables is required"
 }
-$RedistRoot = Join-Path $VisualStudioPath "VC\Redist\MSVC"
-$AppLocalCrtPath = Get-ChildItem $RedistRoot -Directory |
-    Sort-Object Name -Descending |
-    ForEach-Object {
-        Get-ChildItem (Join-Path $_.FullName "x64") `
-            -Directory `
-            -Filter "Microsoft.VC*.CRT" `
-            -ErrorAction SilentlyContinue
-    } |
-    Select-Object -First 1
-if (-not $AppLocalCrtPath) {
+$RedistVersionPath = Join-Path `
+    $VisualStudioPath `
+    "VC\Auxiliary\Build\Microsoft.VCRedistVersion.default.txt"
+if (-not (Test-Path $RedistVersionPath)) {
+    throw "The default Visual Studio 2022 MSVC redistributable version was not found"
+}
+$RedistVersion = (Get-Content $RedistVersionPath -Raw).Trim()
+$AppLocalCrtPath = Join-Path `
+    $VisualStudioPath `
+    "VC\Redist\MSVC\$RedistVersion\x64\Microsoft.VC143.CRT"
+if (-not (Test-Path $AppLocalCrtPath)) {
     throw "The Visual Studio app-local x64 MSVC runtime directory was not found"
 }
-$RuntimeVersionFile = Get-Item (Join-Path $AppLocalCrtPath.FullName "msvcp140.dll")
+$RuntimeVersionFile = Get-Item (Join-Path $AppLocalCrtPath "msvcp140.dll")
 $RuntimeVersion = [version]$RuntimeVersionFile.VersionInfo.FileVersion
 $MinimumRuntimeVersion = [version]$Lock.visualCppRuntime.minimumVersion
 if ($RuntimeVersion -lt $MinimumRuntimeVersion) {
     throw "MSVC runtime $RuntimeVersion is older than required $MinimumRuntimeVersion"
 }
 $AppLocalRuntimeFiles = @()
-Get-ChildItem $AppLocalCrtPath.FullName -File -Filter "*.dll" | ForEach-Object {
+Get-ChildItem $AppLocalCrtPath -File -Filter "*.dll" | ForEach-Object {
     $Destination = Join-Path $RuntimePath $_.Name
     Copy-Item $_.FullName $Destination
     $AppLocalRuntimeFiles += [ordered]@{

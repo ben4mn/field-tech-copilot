@@ -34,6 +34,7 @@ MODEL_ALIAS = "fieldtech-lite"
 MODEL_FILENAME = "Qwen3-1.7B-Q8_0.gguf"
 KNOWLEDGE_PACK_VERSION = "1"
 MUTEX_NAME = "FieldTechCopilotDesktop-8D4D48B8-9518-4BA1-A44B-2243D7D97E63"
+VC_RUNTIME_FILENAMES = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 
 
 @dataclass(frozen=True, slots=True)
@@ -107,10 +108,15 @@ def show_error(message: str) -> None:
 
 
 def validate_bundle(paths: BundlePaths) -> dict[str, object]:
+    required_paths = (
+        paths.server,
+        paths.model,
+        paths.knowledge,
+        paths.manifest,
+        *(paths.root / "runtime" / name for name in VC_RUNTIME_FILENAMES),
+    )
     missing = [
-        str(path)
-        for path in (paths.server, paths.model, paths.knowledge, paths.manifest)
-        if not path.exists()
+        str(path) for path in required_paths if not path.exists()
     ]
     if missing:
         raise RuntimeError("The offline bundle is incomplete. Missing: " + ", ".join(missing))

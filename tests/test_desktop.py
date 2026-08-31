@@ -2,7 +2,13 @@ import json
 from pathlib import Path
 
 from fieldtech.core.database import Database
-from fieldtech.desktop import bundle_paths, seed_knowledge, user_data_root, validate_bundle
+from fieldtech.desktop import (
+    VC_RUNTIME_FILENAMES,
+    bundle_paths,
+    seed_knowledge,
+    user_data_root,
+    validate_bundle,
+)
 
 EXAMPLE_KNOWLEDGE = Path(__file__).parents[1] / "examples" / "knowledge"
 
@@ -13,6 +19,8 @@ def make_bundle(tmp_path: Path) -> Path:
     (root / "models").mkdir()
     (root / "knowledge").mkdir()
     (root / "runtime" / "llama-server.exe").write_bytes(b"runtime")
+    for name in VC_RUNTIME_FILENAMES:
+        (root / "runtime" / name).write_bytes(b"runtime")
     (root / "models" / "Qwen3-1.7B-Q8_0.gguf").write_bytes(b"model")
     source = EXAMPLE_KNOWLEDGE / "windows" / "connectivity-scope.md"
     destination = root / "knowledge" / "connectivity-scope.md"

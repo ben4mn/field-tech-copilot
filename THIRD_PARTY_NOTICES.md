@@ -25,12 +25,13 @@ Tech Copilot.
 The llama.cpp archive also contains LLVM OpenMP runtime components under the
 license included as `licenses/LLVM-OpenMP.txt`.
 
-## Microsoft Visual C++ Redistributable
+## Microsoft Visual C++ Runtime
 
-- Component: Visual C++ Redistributable for Visual Studio 2015–2026, x64
-- Installer SHA-256: `cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b`
+- Component: unmodified x64 MSVC v14 runtime DLLs deployed application-locally
+- Source: the Visual Studio MSVC redistributable directory on the Windows build runner
+- Exact file versions and SHA-256 values: installed `bundle-manifest.json`
 - Microsoft terms: <https://visualstudio.microsoft.com/license-terms/>
-- Download information: <https://learn.microsoft.com/cpp/windows/latest-supported-vc-redist>
+- Deployment information: <https://learn.microsoft.com/cpp/windows/determining-which-dlls-to-redistribute>
 
 ## Python application dependencies
 

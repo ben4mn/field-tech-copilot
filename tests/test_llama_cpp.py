@@ -2,8 +2,11 @@ import json
 
 import httpx
 
-from fieldtech.core.models import Assessment, DiagnosticCase
-from fieldtech.providers.llama_cpp import LlamaCppDiagnosticModel, llama_generation_schema
+from fieldtech.core.models import DiagnosticCase
+from fieldtech.providers.llama_cpp import (
+    LlamaCppDiagnosticModel,
+    assessment_generation_schema,
+)
 from fieldtech.providers.mock import MockDiagnosticModel
 
 
@@ -21,13 +24,17 @@ def _assert_required_properties_exist(value: object) -> None:
 
 
 def test_generation_schema_preserves_real_title_properties() -> None:
-    schema = llama_generation_schema(Assessment.model_json_schema())
+    schema = assessment_generation_schema()
 
-    assert isinstance(schema, dict)
     definitions = schema["$defs"]
     assert "title" in definitions["TestProposal"]["properties"]
     assert "title" in definitions["Intervention"]["properties"]
     assert "title" not in definitions["TestProposal"]
+    assert "id" not in definitions["TestProposal"]["properties"]
+    assert "id" not in definitions["Hypothesis"]["properties"]
+    assert "Citation" not in definitions
+    assert "citations" not in schema["properties"]
+    assert "generated_at" not in schema["properties"]
     _assert_required_properties_exist(schema)
 
 

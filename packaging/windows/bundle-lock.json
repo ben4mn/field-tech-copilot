@@ -18,9 +18,10 @@
     "licenseUrl": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/LICENSE"
   },
   "visualCppRuntime": {
-    "name": "VC_redist.x64.exe",
-    "url": "https://download.visualstudio.microsoft.com/download/pr/9d270333-8b7b-4f96-9458-6fcdb2ec0b25/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
-    "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
-    "size": 25635768
+    "deployment": "app-local",
+    "architecture": "x64",
+    "minimumVersion": "14.44.35211.0",
+    "source": "Visual Studio MSVC redistributable directory",
+    "licenseTermsUrl": "https://visualstudio.microsoft.com/license-terms/"
   }
 }

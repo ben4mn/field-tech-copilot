@@ -40,29 +40,12 @@ Name: "english"; MessagesFile: "compiler:Default.isl"
 Name: "desktopicon"; Description: "Create a desktop shortcut"; GroupDescription: "Additional shortcuts:"; Flags: unchecked
 
 [Files]
-Source: "..\..\dist\FieldTechCopilot\*"; DestDir: "{app}"; Excludes: "models\*,redist\*"; Flags: ignoreversion recursesubdirs createallsubdirs
+Source: "..\..\dist\FieldTechCopilot\*"; DestDir: "{app}"; Excludes: "models\*"; Flags: ignoreversion recursesubdirs createallsubdirs
 Source: "..\..\dist\FieldTechCopilot\models\{#MyModelName}"; DestDir: "{app}\models"; Flags: ignoreversion nocompression
-Source: "..\..\dist\FieldTechCopilot\redist\VC_redist.x64.exe"; DestDir: "{tmp}"; Flags: deleteafterinstall
 
 [Icons]
 Name: "{autoprograms}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"
 Name: "{autodesktop}\{#MyAppName}"; Filename: "{app}\{#MyAppExeName}"; Tasks: desktopicon
 
 [Run]
-Filename: "{tmp}\VC_redist.x64.exe"; Parameters: "/install /quiet /norestart"; StatusMsg: "Installing the Microsoft Visual C++ runtime…"; Flags: waituntilterminated; Check: NeedsVCRedist
 Filename: "{app}\{#MyAppExeName}"; Description: "Launch {#MyAppName}"; Flags: nowait postinstall skipifsilent
-
-[Code]
-function NeedsVCRedist: Boolean;
-var
-  Installed: Cardinal;
-begin
-  Result := not (
-    RegQueryDWordValue(
-      HKLM64,
-      'SOFTWARE\Microsoft\VisualStudio\14.0\VC\Runtimes\x64',
-      'Installed',
-      Installed
-    ) and (Installed = 1)
-  );
-end;

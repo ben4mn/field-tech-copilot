@@ -66,14 +66,48 @@ Get-VerifiedFile `
     -Sha256 $Lock.model.sha256 `
     -Size $Lock.model.size
 
-$RedistPath = Join-Path $DistPath "redist"
-New-Item -ItemType Directory -Force -Path $RedistPath | Out-Null
-$RedistFile = Join-Path $RedistPath $Lock.visualCppRuntime.name
-Get-VerifiedFile `
-    -Url $Lock.visualCppRuntime.url `
-    -Destination $RedistFile `
-    -Sha256 $Lock.visualCppRuntime.sha256 `
-    -Size $Lock.visualCppRuntime.size
+$VsWherePath = Join-Path ${env:ProgramFiles(x86)} "Microsoft Visual Studio\Installer\vswhere.exe"
+if (-not (Test-Path $VsWherePath)) {
+    throw "Visual Studio vswhere.exe is required to collect the app-local MSVC runtime"
+}
+$VisualStudioPath = & $VsWherePath `
+    -latest `
+    -products * `
+    -requires Microsoft.VisualStudio.Component.VC.Tools.x86.x64 `
+    -property installationPath
+if (-not $VisualStudioPath) {
+    throw "Visual Studio with the x64 C++ tools is required to build Field Kit Lite"
+}
+$RedistRoot = Join-Path $VisualStudioPath "VC\Redist\MSVC"
+$AppLocalCrtPath = Get-ChildItem $RedistRoot -Directory |
+    Sort-Object Name -Descending |
+    ForEach-Object {
+        Get-ChildItem (Join-Path $_.FullName "x64") `
+            -Directory `
+            -Filter "Microsoft.VC*.CRT" `
+            -ErrorAction SilentlyContinue
+    } |
+    Select-Object -First 1
+if (-not $AppLocalCrtPath) {
+    throw "The Visual Studio app-local x64 MSVC runtime directory was not found"
+}
+$RuntimeVersionFile = Get-Item (Join-Path $AppLocalCrtPath.FullName "msvcp140.dll")
+$RuntimeVersion = [version]$RuntimeVersionFile.VersionInfo.FileVersion
+$MinimumRuntimeVersion = [version]$Lock.visualCppRuntime.minimumVersion
+if ($RuntimeVersion -lt $MinimumRuntimeVersion) {
+    throw "MSVC runtime $RuntimeVersion is older than required $MinimumRuntimeVersion"
+}
+$AppLocalRuntimeFiles = @()
+Get-ChildItem $AppLocalCrtPath.FullName -File -Filter "*.dll" | ForEach-Object {
+    $Destination = Join-Path $RuntimePath $_.Name
+    Copy-Item $_.FullName $Destination
+    $AppLocalRuntimeFiles += [ordered]@{
+        name = $_.Name
+        version = $_.VersionInfo.FileVersion
+        sha256 = (Get-FileHash $Destination -Algorithm SHA256).Hash.ToLowerInvariant()
+        size = [long]$_.Length
+    }
+}
 
 $KnowledgePath = Join-Path $DistPath "knowledge"
 if (Test-Path $KnowledgePath) {
@@ -106,6 +140,11 @@ $Manifest = [ordered]@{
         tag = $Lock.llamaCpp.tag
         asset = $Lock.llamaCpp.asset
         sha256 = $Lock.llamaCpp.sha256
+    }
+    appLocalVisualCppRuntime = [ordered]@{
+        deployment = $Lock.visualCppRuntime.deployment
+        version = $RuntimeVersion.ToString()
+        files = $AppLocalRuntimeFiles
     }
     knowledgePackVersion = 1
 }

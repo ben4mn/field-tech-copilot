@@ -35,6 +35,27 @@ def llama_generation_schema(value: object, *, _property_map: bool = False) -> ob
     return value
 
 
+def assessment_generation_schema() -> dict[str, object]:
+    """Expose reasoning fields only; the application owns IDs, citations, and time."""
+    schema = llama_generation_schema(Assessment.model_json_schema())
+    if not isinstance(schema, dict):
+        raise TypeError("Assessment JSON schema must be an object")
+    properties = schema.get("properties")
+    definitions = schema.get("$defs")
+    if not isinstance(properties, dict) or not isinstance(definitions, dict):
+        raise TypeError("Assessment JSON schema is missing properties or definitions")
+    properties.pop("generated_at", None)
+    properties.pop("citations", None)
+    definitions.pop("Citation", None)
+    for definition_name in ("Hypothesis", "TestProposal"):
+        definition = definitions.get(definition_name)
+        if isinstance(definition, dict) and isinstance(
+            definition_properties := definition.get("properties"), dict
+        ):
+            definition_properties.pop("id", None)
+    return schema
+
+
 class LlamaCppDiagnosticModel:
     """Adapter for llama.cpp's loopback-only OpenAI-compatible server."""
 
@@ -90,7 +111,7 @@ class LlamaCppDiagnosticModel:
                 "json_schema": {
                     "name": "diagnostic_assessment",
                     "strict": True,
-                    "schema": llama_generation_schema(Assessment.model_json_schema()),
+                    "schema": assessment_generation_schema(),
                 },
             },
             "chat_template_kwargs": {"enable_thinking": False},

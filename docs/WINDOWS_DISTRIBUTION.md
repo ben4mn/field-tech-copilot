@@ -6,8 +6,9 @@
 
 Field Kit Lite is the one-download GitHub Release. It contains a frozen onedir
 Python application inside a single Inno Setup executable, llama.cpp CPU x64,
-Qwen3-1.7B Q8_0, synthetic starter knowledge, the Visual C++ redistributable,
-and all required notices.
+Qwen3-1.7B Q8_0, synthetic starter knowledge, app-local Visual C++ runtime
+DLLs, and all required notices. The app-local runtime keeps setup per-user and
+does not require an administrator solely to install a machine-wide prerequisite.
 
 The model and runtime are fetched only by the release workflow. Their immutable
 URLs, sizes, and SHA-256 hashes live in
@@ -37,7 +38,8 @@ network interfaces, and complete a saved-case smoke test before field use.
 
 ## Build locally on Windows
 
-Install Python 3.11, uv, and Inno Setup 6.7.1, then run from the repository root:
+Install Python 3.11, uv, Inno Setup 6.7.1, and Visual Studio with the x64 C++
+tools, then run from the repository root:
 
 ```powershell
 uv sync --extra dev --extra package-windows --locked

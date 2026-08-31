@@ -398,6 +398,8 @@ def main(argv: list[str] | None = None) -> int:
     except (OSError, RuntimeError, ValueError, json.JSONDecodeError) as exc:
         if args.self_test:
             logging.exception("Self-test failed: %s", exc)
+            if sys.stderr is not None:
+                print(f"Self-test failed: {exc}", file=sys.stderr)
         else:
             show_error(str(exc))
         return 2

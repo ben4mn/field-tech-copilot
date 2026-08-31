@@ -36,6 +36,12 @@ jobs:
       - name: Build desktop application
         run: uv run pyinstaller --noconfirm --clean packaging/windows/FieldTechCopilot.spec
 
+      - name: Cache pinned upstream payloads
+        uses: actions/cache@v4
+        with:
+          path: build/windows-downloads
+          key: windows-payload-${{ hashFiles('packaging/windows/bundle-lock.json') }}
+
       - name: Add pinned offline payload
         shell: pwsh
         run: packaging/windows/prepare-bundle.ps1
@@ -60,12 +66,14 @@ jobs:
         shell: pwsh
         run: |
           $DataPath = Join-Path $env:RUNNER_TEMP "fieldtech-dist-selftest"
-          & dist/FieldTechCopilot/FieldTechCopilot.exe --self-test --model-smoke --data-dir $DataPath
+          & dist/FieldTechCopilot/FieldTechCopilotDiagnostics.exe --self-test --model-smoke --data-dir $DataPath
           if ($LASTEXITCODE -ne 0) {
             Get-Content "$DataPath/logs/launcher.log" -ErrorAction SilentlyContinue
             Get-Content "$DataPath/logs/llama-server.log" -Tail 200 -ErrorAction SilentlyContinue
             throw "Packaged offline model smoke test failed"
           }
+          & dist/FieldTechCopilot/FieldTechCopilot.exe --self-test --data-dir $DataPath
+          if ($LASTEXITCODE -ne 0) { throw "Windowless packaged app self-test failed" }
 
       - name: Install Inno Setup
         shell: pwsh
@@ -128,6 +136,17 @@ jobs:
           compression-level: 0
           retention-days: 7
           if-no-files-found: error
+
+      - name: Preserve Windows diagnostics on failure
+        if: failure()
+        uses: actions/upload-artifact@v4
+        with:
+          name: field-tech-copilot-windows-diagnostics
+          path: |
+            build/FieldTechCopilot/warn-FieldTechCopilot.txt
+            ${{ runner.temp }}/fieldtech-dist-selftest/logs/*
+          if-no-files-found: ignore
+          retention-days: 7
 
   release:
     if: github.ref_type == 'tag'

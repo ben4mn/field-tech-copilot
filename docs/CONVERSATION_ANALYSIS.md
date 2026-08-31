@@ -2,7 +2,7 @@
 
 ## Product intent
 
-Josh needs a field technician copilot that remains useful with no internet connection. The core job is not open-ended chat: it is to turn a customer complaint and a stream of test results into a persistent, evidence-based diagnostic process.
+A field technician needs a copilot that remains useful with no internet connection. The core job is not open-ended chat: it is to turn a customer complaint and a stream of test results into a persistent, evidence-based diagnostic process.
 
 The desired behavior is:
 
@@ -17,7 +17,7 @@ The external knowledge layer should contain verified commands, safe procedures, 
 
 ## Primary user and environment
 
-The initial user is a busy Windows-heavy repair technician working on a remote island, often without dependable cellular service. The tool must be quick to start, simple to maintain, and usable on a mobile laptop. A customer may be watching, so the interface should look like a purpose-built workbench rather than a generic chat site.
+The initial user is a busy Windows-heavy repair technician working in a low-connectivity region. The tool must be quick to start, simple to maintain, and usable on a mobile laptop. A customer may be watching, so the interface should look like a purpose-built workbench rather than a generic chat site.
 
 Known baseline hardware is a Core Ultra 5 laptop with 32 GB RAM running Qwen3 8B. Typical responses are reportedly under 20 seconds. Up to 60–120 seconds is acceptable for the first few difficult decisions if accuracy improves. Other laptop specifications were shared as images but are not present in the supplied text, so a responsible hardware recommendation is not possible yet.
 
@@ -52,7 +52,7 @@ Known baseline hardware is a Core Ultra 5 laptop with 32 GB RAM running Qwen3 8B
 2. Whether “talk to it” means typed conversation initially or requires offline speech.
 3. Whether deployment should be native Windows, WSL, or Linux.
 4. The current prototype, prompts, model quantization, and gold-example format.
-5. The first three repair categories Josh wants to pilot.
+5. The first three repair categories the pilot technician wants to evaluate.
 6. Retention, encryption, deletion, and backup expectations for case data.
 7. Whether this remains an internal tool or may become a product for other technicians.
 8. Which vendor materials may legally be redistributed in a knowledge bundle.
@@ -73,4 +73,3 @@ Known baseline hardware is a Core Ultra 5 laptop with 32 GB RAM running Qwen3 8B
 ## Product conclusion
 
 The right first product is a diagnostic case notebook with a replaceable local reasoning engine. Fine-tuning, voice, automatic command execution, broad vendor coverage, and multi-technician features are later decisions. Reliability comes first from explicit state, curated evidence, guardrails, and evaluation—not from a larger prompt or a larger model alone.
-

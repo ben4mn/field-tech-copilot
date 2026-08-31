@@ -1,0 +1,154 @@
+name: Windows release
+
+on:
+  workflow_dispatch:
+  push:
+    tags:
+      - "v*"
+
+permissions:
+  contents: read
+
+jobs:
+  build:
+    runs-on: windows-2022
+    env:
+      PYTHON_VERSION: "3.11"
+      INNO_SETUP_VERSION: "6.7.1"
+      WINDOWS_CERTIFICATE_BASE64: ${{ secrets.WINDOWS_CERTIFICATE_BASE64 }}
+      WINDOWS_CERTIFICATE_PASSWORD: ${{ secrets.WINDOWS_CERTIFICATE_PASSWORD }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: astral-sh/setup-uv@v6
+        with:
+          python-version: ${{ env.PYTHON_VERSION }}
+          enable-cache: true
+
+      - name: Install locked Python environment
+        run: uv sync --extra dev --extra package-windows --locked
+
+      - name: Verify source
+        run: |
+          uv run ruff check .
+          uv run pytest --cov=fieldtech --cov-report=term-missing
+
+      - name: Build desktop application
+        run: uv run pyinstaller --noconfirm --clean packaging/windows/FieldTechCopilot.spec
+
+      - name: Add pinned offline payload
+        shell: pwsh
+        run: packaging/windows/prepare-bundle.ps1
+
+      - name: Record Python dependency inventory
+        shell: pwsh
+        run: |
+          uv pip freeze | Set-Content -Encoding UTF8 dist/FieldTechCopilot/licenses/python-dependencies.txt
+          uv run pip-licenses --format=json --with-authors --with-urls --with-license-file --no-license-path | Set-Content -Encoding UTF8 dist/FieldTechCopilot/licenses/python-dependency-licenses.json
+
+      - name: Sign desktop executable when certificate is configured
+        if: env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        run: |
+          $CertificatePath = Join-Path $env:RUNNER_TEMP "fieldtech-signing.pfx"
+          [IO.File]::WriteAllBytes($CertificatePath, [Convert]::FromBase64String($env:WINDOWS_CERTIFICATE_BASE64))
+          $SignTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $SignTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $CertificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD dist/FieldTechCopilot/FieldTechCopilot.exe
+          if ($LASTEXITCODE -ne 0) { throw "Authenticode signing failed" }
+
+      - name: Exercise packaged app and bundled model
+        shell: pwsh
+        run: |
+          $DataPath = Join-Path $env:RUNNER_TEMP "fieldtech-dist-selftest"
+          & dist/FieldTechCopilot/FieldTechCopilot.exe --self-test --model-smoke --data-dir $DataPath
+          if ($LASTEXITCODE -ne 0) {
+            Get-Content "$DataPath/logs/launcher.log" -ErrorAction SilentlyContinue
+            Get-Content "$DataPath/logs/llama-server.log" -Tail 200 -ErrorAction SilentlyContinue
+            throw "Packaged offline model smoke test failed"
+          }
+
+      - name: Install Inno Setup
+        shell: pwsh
+        run: choco install innosetup --version $env:INNO_SETUP_VERSION --yes --no-progress
+
+      - name: Compile one-file installer
+        shell: pwsh
+        run: |
+          $Version = if ($env:GITHUB_REF_TYPE -eq "tag") { $env:GITHUB_REF_NAME -replace '^v', '' } else { "0.2.0-dev.$env:GITHUB_RUN_NUMBER" }
+          & "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe" "/DMyAppVersion=$Version" packaging/windows/FieldTechCopilot.iss
+          if ($LASTEXITCODE -ne 0) { throw "Inno Setup compilation failed" }
+
+      - name: Sign installer when certificate is configured
+        if: env.WINDOWS_CERTIFICATE_BASE64 != ''
+        shell: pwsh
+        run: |
+          $CertificatePath = Join-Path $env:RUNNER_TEMP "fieldtech-signing.pfx"
+          $Installer = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          $SignTool = Get-ChildItem "${env:ProgramFiles(x86)}\Windows Kits\10\bin\*\x64\signtool.exe" | Sort-Object FullName -Descending | Select-Object -First 1
+          & $SignTool.FullName sign /fd SHA256 /tr http://timestamp.digicert.com /td SHA256 /f $CertificatePath /p $env:WINDOWS_CERTIFICATE_PASSWORD $Installer.FullName
+          if ($LASTEXITCODE -ne 0) { throw "Installer signing failed" }
+
+      - name: Smoke-test installed files and data location
+        shell: pwsh
+        run: |
+          $Installer = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          $InstallPath = Join-Path $env:RUNNER_TEMP "FieldTechCopilotInstalled"
+          $DataPath = Join-Path $env:RUNNER_TEMP "fieldtech-installed-selftest"
+          & $Installer.FullName /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$InstallPath"
+          if ($LASTEXITCODE -ne 0) { throw "Silent installation failed" }
+          & "$InstallPath\FieldTechCopilot.exe" --self-test --data-dir $DataPath
+          if ($LASTEXITCODE -ne 0) { throw "Installed application self-test failed" }
+          if (Get-ChildItem $InstallPath -Recurse -Include *.db,*.db-wal,*.db-shm) {
+            throw "Mutable case data was written inside the installation directory"
+          }
+          $Marker = Join-Path $DataPath "preserve-on-uninstall.txt"
+          Set-Content -Path $Marker -Value "preserve"
+          & "$InstallPath\unins000.exe" /VERYSILENT /SUPPRESSMSGBOXES /NORESTART
+          if ($LASTEXITCODE -ne 0) { throw "Silent uninstall failed" }
+          if (-not (Test-Path $Marker)) { throw "Uninstall removed user data" }
+
+      - name: Generate checksums and enforce GitHub release budget
+        shell: pwsh
+        run: |
+          $Installer = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
+          if ($Installer.Length -ge 2147483648) { throw "Installer exceeds GitHub's 2 GiB asset limit" }
+          if ($Installer.Length -gt 2000000000) { throw "Installer exceeds the 2,000,000,000-byte release budget" }
+          $Hash = (Get-FileHash $Installer.FullName -Algorithm SHA256).Hash.ToLowerInvariant()
+          "$Hash  $($Installer.Name)" | Set-Content -Encoding ASCII "$($Installer.FullName).sha256"
+          Copy-Item THIRD_PARTY_NOTICES.md dist/installer/THIRD_PARTY_NOTICES.md
+          Copy-Item dist/FieldTechCopilot/bundle-manifest.json dist/installer/bundle-manifest.json
+          Compress-Archive -Path dist/FieldTechCopilot/licenses/* -DestinationPath dist/installer/FieldTechCopilot-FieldKit-Lite-Licenses.zip
+          Write-Host "Installer bytes: $($Installer.Length)"
+          Write-Host "Installer SHA-256: $Hash"
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: field-tech-copilot-windows
+          path: dist/installer/*
+          compression-level: 0
+          retention-days: 7
+          if-no-files-found: error
+
+  release:
+    if: github.ref_type == 'tag'
+    needs: build
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/download-artifact@v4
+        with:
+          name: field-tech-copilot-windows
+          path: release-assets
+      - name: Publish GitHub release
+        env:
+          GH_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          prerelease=""
+          if [[ "$GITHUB_REF_NAME" =~ (preview|alpha|beta|rc) ]]; then prerelease="--prerelease"; fi
+          gh release create "$GITHUB_REF_NAME" release-assets/* \
+            --repo "$GITHUB_REPOSITORY" \
+            --title "Field Kit Lite ${GITHUB_REF_NAME#v}" \
+            --notes-file packaging/windows/RELEASE_NOTES.md \
+            $prerelease

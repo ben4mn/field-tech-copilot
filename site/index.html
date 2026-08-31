@@ -1,0 +1,159 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="description" content="Field Tech Copilot is an offline-first diagnostic case notebook for Windows field technicians.">
+    <meta name="theme-color" content="#10271e">
+    <meta property="og:type" content="website">
+    <meta property="og:title" content="Field Tech Copilot">
+    <meta property="og:description" content="Keep the diagnostic thread intact—even with no signal.">
+    <meta property="og:url" content="https://ben4mn.github.io/field-tech-copilot/">
+    <meta property="og:image" content="https://ben4mn.github.io/field-tech-copilot/assets/social-card.png">
+    <meta name="twitter:card" content="summary_large_image">
+    <title>Field Tech Copilot · Offline-first Windows field kit</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310271e'/%3E%3Cpath d='M18 19h29v8H28v7h16v8H28v15H18z' fill='%23d9f36c'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="styles.css">
+    <script src="app.js" defer></script>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
+    <header class="site-header">
+      <a class="brand" href="#top" aria-label="Field Tech Copilot home">
+        <span class="brand-mark">FT</span>
+        <span>Field Tech Copilot</span>
+      </a>
+      <nav aria-label="Main navigation">
+        <a href="#how-it-works">How it works</a>
+        <a href="#safety">Safety</a>
+        <a class="nav-download" href="#download">Download</a>
+      </nav>
+    </header>
+
+    <main id="main">
+      <section id="top" class="hero">
+        <div class="hero-copy">
+          <p class="eyebrow">Offline-first · Windows</p>
+          <h1>Keep the diagnostic thread intact—even with no signal.</h1>
+          <p class="hero-lead">Turn a customer complaint and each test result into a persistent repair case. Get one useful next test at a time, keep completed work visible, and leave every action to the technician.</p>
+          <div id="hero-release" class="release-cta" aria-live="polite">
+            <a id="hero-download" class="button primary disabled" aria-disabled="true">Preparing Windows installer</a>
+            <p id="hero-meta">Checking the latest verified build…</p>
+          </div>
+          <a class="text-link" href="#how-it-works">See how it works <span aria-hidden="true">↓</span></a>
+          <ul class="trust-list" aria-label="Product trust notes">
+            <li>Local by default</li>
+            <li>No account</li>
+            <li>No telemetry</li>
+            <li>Never executes commands</li>
+          </ul>
+        </div>
+        <button class="preview-button" id="open-preview" type="button" aria-label="Open full product preview">
+          <span class="window-bar"><i></i><i></i><i></i><strong>Local case · 127.0.0.1</strong></span>
+          <img src="assets/app-preview.png" alt="Field Tech Copilot case screen showing a current assessment, a safe next test, local sources, and completed work.">
+          <span class="preview-caption">Synthetic preview · mock provider</span>
+        </button>
+      </section>
+
+      <section id="how-it-works" class="section steps-section">
+        <div class="section-heading">
+          <p class="eyebrow">How it works</p>
+          <h2>One case. One next test. A record you can trust.</h2>
+        </div>
+        <div class="steps-grid">
+          <article>
+            <span>01</span>
+            <h3>Start with the complaint.</h3>
+            <p>Record the customer’s words and device context without copying secrets or unrelated files.</p>
+          </article>
+          <article>
+            <span>02</span>
+            <h3>Record what happened.</h3>
+            <p>Observations and test results are saved locally before the model reasons.</p>
+          </article>
+          <article>
+            <span>03</span>
+            <h3>Follow the evidence.</h3>
+            <p>The copilot ranks hypotheses and proposes one useful next test without silently repeating completed work.</p>
+          </article>
+        </div>
+      </section>
+
+      <section class="section workbench-section">
+        <div>
+          <p class="eyebrow">The workbench</p>
+          <h2>The whole diagnostic thread, without digging through chat.</h2>
+          <p>See the current assessment, next test, ranked hypotheses, local sources, and completed work in one place. Cases survive restart and export to a readable Markdown record.</p>
+        </div>
+        <ul class="feature-list">
+          <li><strong>Persistent state</strong><span>Case history stays in local SQLite storage.</span></li>
+          <li><strong>Grounded cards</strong><span>Procedure references come from the bundled local index.</span></li>
+          <li><strong>Visible guardrails</strong><span>Repeat and data-risking steps cannot pass silently.</span></li>
+        </ul>
+      </section>
+
+      <section id="safety" class="section safety-section">
+        <div class="safety-copy">
+          <p class="eyebrow light">Advisory by design</p>
+          <h2>Advice stays advice.</h2>
+          <p>Field Tech Copilot never runs a command or changes a customer’s machine. It blocks silent repeat tests, labels risky steps, and requires technician confirmation before destructive or data-risking work.</p>
+        </div>
+        <div class="warning-card">
+          <strong>Pre-alpha software can be wrong.</strong>
+          <p>A trained technician must verify every recommendation and remains responsible for customer data and repair decisions.</p>
+          <p>Do not enter passwords, recovery keys, payment data, or unrelated customer files.</p>
+        </div>
+      </section>
+
+      <section id="download" class="section download-section">
+        <div class="download-intro">
+          <p class="eyebrow">Windows bundle</p>
+          <h2 id="download-title">Preparing the field kit.</h2>
+          <p id="download-copy">The page enables the installer only when a release contains the pinned app, runtime, model, starter knowledge, licenses, and checksum.</p>
+          <a id="download-button" class="button primary disabled" aria-disabled="true">Preparing Windows installer</a>
+          <p id="download-meta" class="download-meta">Windows 10/11 x64 · 8 GB RAM · 6 GB free disk</p>
+        </div>
+
+        <div id="available-details" class="install-card hidden">
+          <ol>
+            <li><span>1</span><div><strong>Download the installer.</strong><p>One file contains the application, CPU runtime, Lite model, and starter knowledge.</p></div></li>
+            <li><span>2</span><div><strong>Open it and choose Install.</strong><p>No connection is required during setup or use.</p></div></li>
+            <li><span>3</span><div><strong>Launch Field Tech Copilot.</strong><p>It opens in your browser only on this PC at <code>127.0.0.1</code>.</p></div></li>
+          </ol>
+          <div class="integrity">
+            <div>
+              <span>SHA-256</span>
+              <code id="checksum"></code>
+            </div>
+            <button id="copy-checksum" type="button">Copy</button>
+          </div>
+          <p class="command-label">Verify in PowerShell:</p>
+          <pre><code>Get-FileHash .\FieldTechCopilot-FieldKit-Lite-*.exe -Algorithm SHA256</code></pre>
+          <div id="signature-note" class="signature-note"></div>
+        </div>
+
+        <aside class="lite-note">
+          <span>Why “Lite”?</span>
+          <p>The one-file kit uses an official, redistributable 1.7B Qwen model so it fits under GitHub’s 2 GiB asset limit. It is for workflow evaluation and is not validated for field diagnosis. The existing Ollama + Qwen3 8B profile remains the higher-quality option and requires a separate model download before going offline.</p>
+          <a href="https://github.com/ben4mn/field-tech-copilot#full-local-ai-profile">Set up the Full profile on GitHub</a>
+        </aside>
+      </section>
+    </main>
+
+    <footer>
+      <div><span class="brand-mark small">FT</span><strong>Field Tech Copilot</strong></div>
+      <p>Decision support for trained technicians—not a diagnosis, repair authorization, or autonomous repair tool.</p>
+      <nav aria-label="Footer navigation">
+        <a href="https://github.com/ben4mn/field-tech-copilot/blob/main/SECURITY.md">Security</a>
+        <a id="release-notes" href="https://github.com/ben4mn/field-tech-copilot/releases">Release notes</a>
+        <a href="https://github.com/ben4mn/field-tech-copilot">GitHub</a>
+      </nav>
+    </footer>
+
+    <dialog id="preview-dialog">
+      <button id="close-preview" type="button" aria-label="Close preview">Close</button>
+      <img src="assets/app-preview.png" alt="Full Field Tech Copilot synthetic product preview.">
+      <p>Preview uses synthetic data and the mock provider; it is not a diagnostic result.</p>
+    </dialog>
+  </body>
+</html>

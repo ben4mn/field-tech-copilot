@@ -46,7 +46,7 @@ The system will provide a local web UI, persistent cases, structured assessments
 | Safety | Every destructive/data-risking recommendation is warned and requires confirmation |
 | Continuity | Cases survive restart and export cleanly |
 
-These are pilot targets, not claims of diagnostic accuracy. The evaluation set and scoring rubric must be agreed with Josh.
+These are pilot targets, not claims of diagnostic accuracy. The evaluation set and scoring rubric must be agreed with the pilot technician.
 
 ## Design principles
 
@@ -56,4 +56,3 @@ These are pilot targets, not claims of diagnostic accuracy. The evaluation set a
 - **Local and inspectable:** all inference, cases, sources, and logs stay on the device by default.
 - **Human in control:** the tool advises; the technician decides and acts.
 - **Benchmark before buying:** model and hardware choices follow field-relevant measurements.
-

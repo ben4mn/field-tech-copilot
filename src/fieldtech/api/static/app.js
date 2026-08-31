@@ -78,10 +78,14 @@ async function loadHealth() {
     const response = await api("/api/health");
     const health = await response.json();
     const node = el("health");
-    node.className = `health ${health.model_ready ? "health-ready" : "health-degraded"}`;
-    node.textContent = health.model_ready
-      ? `Offline ready · ${health.model} · ${health.knowledge_cards} cards`
-      : `Needs attention · ${health.model_message}`;
+    const localAiReady = health.diagnostic_capable && health.model_ready;
+    node.className = `health ${localAiReady || health.reasoning_mode === "demo_fixture" ? "health-ready" : "health-degraded"}`;
+    node.textContent = localAiReady
+      ? `Local AI ready · ${health.model} · ${health.knowledge_cards} cards`
+      : health.reasoning_mode === "demo_fixture"
+        ? `Offline notebook ready · demo reasoning only · ${health.knowledge_cards} cards`
+        : `Needs attention · ${health.model_message}`;
+    el("quit-app").classList.toggle("hidden", !health.can_quit);
   } catch (error) {
     el("health").className = "health health-degraded";
     el("health").textContent = "Local stack unavailable";
@@ -311,6 +315,21 @@ el("new-case-toggle").addEventListener("click", () => toggleNewCase());
 el("empty-new-case").addEventListener("click", () => toggleNewCase(true));
 el("new-case-cancel").addEventListener("click", () => toggleNewCase(false));
 el("reload-cases").addEventListener("click", () => withBusy(() => loadCases()));
+el("quit-app").addEventListener("click", async () => {
+  el("quit-app").disabled = true;
+  try {
+    await api("/api/system/shutdown", { method: "POST" });
+    document.body.innerHTML = `
+      <main class="stopped-screen">
+        <div class="brand-mark">FT</div>
+        <h1>Field Tech Copilot has stopped.</h1>
+        <p>You can close this browser tab. Your local cases are saved.</p>
+      </main>`;
+  } catch (error) {
+    el("quit-app").disabled = false;
+    toast(error.message);
+  }
+});
 
 el("new-case-form").addEventListener("submit", async (event) => {
   event.preventDefault();
@@ -381,4 +400,3 @@ el("export-case").addEventListener("click", async () => {
 });
 
 Promise.all([loadHealth(), loadCases()]).catch((error) => toast(error.message));
-

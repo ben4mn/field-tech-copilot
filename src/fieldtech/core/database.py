@@ -49,6 +49,11 @@ CREATE VIRTUAL TABLE IF NOT EXISTS knowledge_fts USING fts5(
     body,
     tokenize='porter unicode61'
 );
+
+CREATE TABLE IF NOT EXISTS app_meta (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+);
 """
 
 
@@ -141,3 +146,19 @@ class Database:
             row = connection.execute("SELECT COUNT(*) AS count FROM knowledge_cards").fetchone()
         return int(row["count"])
 
+    def get_meta(self, key: str) -> str | None:
+        with self.connect() as connection:
+            row = connection.execute(
+                "SELECT value FROM app_meta WHERE key = ?", (key,)
+            ).fetchone()
+        return str(row["value"]) if row else None
+
+    def set_meta(self, key: str, value: str) -> None:
+        with self.connect() as connection:
+            connection.execute(
+                """
+                INSERT INTO app_meta(key, value) VALUES (?, ?)
+                ON CONFLICT(key) DO UPDATE SET value=excluded.value
+                """,
+                (key, value),
+            )

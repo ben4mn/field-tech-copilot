@@ -4,9 +4,11 @@ Last reviewed: 2026-08-31. Local-model tooling changes quickly; pin exact runtim
 
 ## Decision for the first benchmark
 
-Use Ollama as the first Windows-native model runtime and keep the provider boundary small. Keep Josh's existing Qwen3 8B setup as the control. A better model is one that improves the field-specific gold cases enough to justify its latency, memory, heat, battery, and installation cost—not one that wins an unrelated leaderboard.
+Use Ollama as the first Windows-native full-model runtime and keep the provider boundary small. Keep the existing Qwen3 8B setup as the control. A better model is one that improves the field-specific gold cases enough to justify its latency, memory, heat, battery, and installation cost—not one that wins an unrelated leaderboard.
 
 Ollama is the first integration because it provides a local API, Windows support, embeddings, and JSON-schema-constrained structured output. `llama.cpp` remains the likely tuning/deployment path when direct control over GGUF quantization, CUDA/Vulkan/SYCL backends, and CPU/GPU hybrid offload becomes important. Its `llama-server` exposes OpenAI-compatible chat and embeddings APIs plus schema-constrained output.
+
+Field Kit Lite now uses that llama.cpp deployment path with the official Qwen3-1.7B Q8_0 GGUF. This is a packaging and workflow profile chosen because the complete installer fits GitHub's 2 GiB per-asset limit. It is not a quality replacement for the Qwen3 8B control and must not receive a field-ready label without passing the same gold set and trained-technician review.
 
 Official references:
 
@@ -74,4 +76,3 @@ Fine-tune only a stable, repeated behavioral failure (for example, consistently 
 - Confirm the model and API bind to loopback only.
 - Record load time, first useful output, total turn time, RAM/VRAM, battery, heat, and schema-valid rate.
 - Confirm no component tries to download a model, tokenizer, package, or document during startup.
-

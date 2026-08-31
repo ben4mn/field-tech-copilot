@@ -16,7 +16,10 @@ def test_settings_from_environment(monkeypatch: pytest.MonkeyPatch) -> None:
     assert settings.model_name == "qwen3:8b"
 
 
+def test_llama_cpp_provider_is_allowed() -> None:
+    Settings(model_provider="llama_cpp").validate()
+
+
 def test_non_loopback_bind_is_rejected() -> None:
     with pytest.raises(ValueError, match="non-loopback"):
         Settings(host="0.0.0.0").validate()
-

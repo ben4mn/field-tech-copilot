@@ -1,15 +1,17 @@
 from __future__ import annotations
 
 import secrets
+from collections.abc import Callable
 from pathlib import Path
 from typing import Literal
 
-from fastapi import Depends, FastAPI, Header, HTTPException, Response, status
+from fastapi import BackgroundTasks, Depends, FastAPI, Header, HTTPException, Response, status
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse, PlainTextResponse
 from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
 
+from fieldtech import __version__
 from fieldtech.config import Settings
 from fieldtech.core.database import Database
 from fieldtech.core.models import DeviceContext, DiagnosticCase
@@ -41,7 +43,10 @@ class CompleteTestRequest(BaseModel):
     confirmed: bool = False
 
 
-def create_app(settings: Settings | None = None) -> FastAPI:
+def create_app(
+    settings: Settings | None = None,
+    shutdown_callback: Callable[[], None] | None = None,
+) -> FastAPI:
     settings = settings or Settings.from_env()
     database = Database(settings.database_path)
     database.initialize()
@@ -52,7 +57,7 @@ def create_app(settings: Settings | None = None) -> FastAPI:
 
     app = FastAPI(
         title="Field Tech Copilot",
-        version="0.1.0",
+        version=__version__,
         docs_url=None,
         redoc_url=None,
         openapi_url=None,
@@ -107,7 +112,24 @@ def create_app(settings: Settings | None = None) -> FastAPI:
             "model_message": model_message,
             "knowledge_cards": database.count_knowledge_cards(),
             "offline_only": not settings.allow_remote,
+            "reasoning_mode": (
+                "demo_fixture" if settings.model_provider == "mock" else "local_ai"
+            ),
+            "diagnostic_capable": (
+                settings.model_provider != "mock" and model_ready
+            ),
+            "can_quit": shutdown_callback is not None,
         }
+
+    @app.post("/api/system/shutdown", dependencies=auth)
+    def shutdown(background_tasks: BackgroundTasks) -> dict[str, str]:
+        if shutdown_callback is None:
+            raise HTTPException(
+                status_code=status.HTTP_409_CONFLICT,
+                detail="This server is managed outside the desktop launcher",
+            )
+        background_tasks.add_task(shutdown_callback)
+        return {"status": "stopping"}
 
     @app.get("/api/cases", response_model=list[DiagnosticCase], dependencies=auth)
     def list_cases() -> list[DiagnosticCase]:
@@ -189,4 +211,3 @@ def create_app(settings: Settings | None = None) -> FastAPI:
         )
 
     return app
-

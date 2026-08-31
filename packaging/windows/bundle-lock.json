@@ -1,0 +1,26 @@
+{
+  "schemaVersion": 1,
+  "llamaCpp": {
+    "tag": "b10724",
+    "asset": "llama-b10724-bin-win-cpu-x64.zip",
+    "url": "https://github.com/ggml-org/llama.cpp/releases/download/b10724/llama-b10724-bin-win-cpu-x64.zip",
+    "sha256": "287b320f2b217809e24e0a7459a25e627b8785223080667d9ecf575253ef0762",
+    "size": 18155275,
+    "licenseUrl": "https://raw.githubusercontent.com/ggml-org/llama.cpp/b10724/LICENSE"
+  },
+  "model": {
+    "name": "Qwen3-1.7B-Q8_0.gguf",
+    "repository": "Qwen/Qwen3-1.7B-GGUF",
+    "commit": "90862c4b9d2787eaed51d12237eafdfe7c5f6077",
+    "url": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/Qwen3-1.7B-Q8_0.gguf",
+    "sha256": "061b54daade076b5d3362dac252678d17da8c68f07560be70818cace6590cb1a",
+    "size": 1834426016,
+    "licenseUrl": "https://huggingface.co/Qwen/Qwen3-1.7B-GGUF/resolve/90862c4b9d2787eaed51d12237eafdfe7c5f6077/LICENSE"
+  },
+  "visualCppRuntime": {
+    "name": "VC_redist.x64.exe",
+    "url": "https://download.visualstudio.microsoft.com/download/pr/9d270333-8b7b-4f96-9458-6fcdb2ec0b25/CC0FF0EB1DC3F5188AE6300FAEF32BF5BEEBA4BDD6E8E445A9184072096B713B/VC_redist.x64.exe",
+    "sha256": "cc0ff0eb1dc3f5188ae6300faef32bf5beeba4bdd6e8e445a9184072096b713b",
+    "size": 25635768
+  }
+}

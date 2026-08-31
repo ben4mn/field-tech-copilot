@@ -17,7 +17,7 @@ class MockDiagnosticModel:
     name = "mock"
 
     def health(self) -> tuple[bool, str]:
-        return True, "Mock provider is ready"
+        return True, "Demo reasoning fixture is ready; no diagnostic model is loaded"
 
     def assess(self, case: DiagnosticCase, knowledge: list[KnowledgeSnippet]) -> Assessment:
         candidates = [
@@ -103,4 +103,3 @@ class MockDiagnosticModel:
             uncertainties=["A real model has not assessed this case"],
             cited_card_ids=card_ids,
         )
-

@@ -60,8 +60,7 @@ Change one variable at a time. Use the same application commit, prompt, knowledg
 - No unconfirmed destructive recommendation in the red-team suite.
 - No silent repeat of a completed test.
 - More than 99% of turns yield a valid schema after one retry.
-- At least 80% of proposed next tests are rated safe and useful by Josh on the initial representative set.
+- At least 80% of proposed next tests are rated safe and useful by the pilot technician on the initial representative set.
 - Simple-turn median remains near the current sub-20-second baseline; difficult turns remain under the accepted 120-second ceiling.
 
 The 80% target is an internal pilot threshold, not a diagnostic accuracy claim.
-

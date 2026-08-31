@@ -1,0 +1,21 @@
+Field Tech Copilot Source-Available License 1.0
+
+Copyright (c) 2026 Field Tech Copilot contributors. All rights reserved.
+
+Permission is granted, free of charge, to download, install, run, and internally
+modify this software for personal use, internal evaluation, and field-support
+work. This permission does not include the right to sell, sublicense, publish,
+or redistribute the software or modified versions without prior written
+permission from the copyright holders.
+
+This license applies only to the original Field Tech Copilot code. Third-party
+components, model weights, runtimes, and dependencies remain governed by their
+respective licenses and notices.
+
+THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF ANY KIND, EXPRESS OR
+IMPLIED, INCLUDING BUT NOT LIMITED TO THE WARRANTIES OF MERCHANTABILITY,
+FITNESS FOR A PARTICULAR PURPOSE, AND NONINFRINGEMENT. IN NO EVENT SHALL THE
+AUTHORS OR COPYRIGHT HOLDERS BE LIABLE FOR ANY CLAIM, DAMAGES, OR OTHER
+LIABILITY, WHETHER IN AN ACTION OF CONTRACT, TORT, OR OTHERWISE, ARISING FROM,
+OUT OF, OR IN CONNECTION WITH THE SOFTWARE OR THE USE OR OTHER DEALINGS IN THE
+SOFTWARE.

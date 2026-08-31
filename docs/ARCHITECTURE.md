@@ -10,12 +10,12 @@ FastAPI on 127.0.0.1
 Diagnostic service ---------------- Safety and repeat guards
    |          |          |
 SQLite     Retriever   Model provider
-cases      SQLite FTS  Ollama or mock
+cases      SQLite FTS  Ollama, llama.cpp, or mock
                 |
        Curated procedure cards
 ```
 
-The application binds to localhost and stores all mutable data under `FIELDTECH_DATA_DIR`. Model inference is performed by a separately installed local runtime. The provider boundary prevents the case logic and UI from depending on one model or inference engine.
+The application binds to localhost and stores all mutable data under `FIELDTECH_DATA_DIR`. Model inference is performed by a local runtime: separately installed Ollama for the Full profile or the bundled, API-key-protected llama.cpp process for Field Kit Lite. The provider boundary prevents the case logic and UI from depending on one model or inference engine.
 
 ## Diagnostic turn
 
@@ -48,7 +48,7 @@ Semantic embeddings and reranking are an experiment, not a prerequisite. Add the
 
 ## Model interface
 
-The default adapter uses Ollama's local `/api/chat` endpoint with a JSON schema and temperature zero. The schema is validated again with Pydantic. A mock provider makes the UI, persistence, safety behavior, and tests runnable without a model.
+The Full-profile adapter uses Ollama's local `/api/chat` endpoint with a JSON schema. Field Kit Lite uses llama.cpp's OpenAI-compatible loopback endpoint, schema-constrained output, a random port, and an in-memory per-session API key. Both responses are validated again with Pydantic. A mock provider makes the UI, persistence, safety behavior, and tests runnable without a diagnostic model.
 
 `llama.cpp` is a viable alternate runtime because `llama-server` exposes OpenAI-compatible chat and embeddings endpoints and supports schema-constrained JSON. Add an adapter after the first end-to-end baseline, not in parallel with it.
 
@@ -77,4 +77,3 @@ Anything marked destructive must include prerequisites, a backup/rollback statem
 - Unknown citations are discarded and surfaced as a validation warning.
 - A repeated test requires a specific repeat rationale; otherwise the turn fails closed.
 - If no safe next step exists, the model can return `insufficient_evidence` or recommend escalation.
-

@@ -26,8 +26,9 @@ def build_parser() -> argparse.ArgumentParser:
     serve = subparsers.add_parser("serve", help="Start the loopback-only local application")
     serve.add_argument("--host")
     serve.add_argument("--port", type=int)
-    serve.add_argument("--provider", choices=["mock", "ollama"])
+    serve.add_argument("--provider", choices=["llama_cpp", "mock", "ollama"])
     serve.add_argument("--model")
+    serve.add_argument("--base-url")
     serve.add_argument("--no-browser", action="store_true")
 
     knowledge = subparsers.add_parser("knowledge", help="Manage the local knowledge index")
@@ -60,6 +61,7 @@ def run_server(args: argparse.Namespace, settings: Settings) -> None:
         port=args.port,
         model_provider=args.provider,
         model_name=args.model,
+        model_base_url=args.base_url,
     )
     app = create_app(settings)
     url = f"http://{settings.host}:{settings.port}"
@@ -86,12 +88,13 @@ def run_doctor(settings: Settings) -> int:
     database.initialize()
     provider = build_provider(settings)
     model_ready, model_message = provider.health()
+    diagnostic_ready = model_ready and settings.model_provider != "mock"
     usage = shutil.disk_usage(settings.data_dir.resolve().parent)
     knowledge_count = database.count_knowledge_cards()
 
     checks = [
         (True, f"Database ready: {settings.database_path.resolve()}"),
-        (model_ready, model_message),
+        (diagnostic_ready, model_message),
         (knowledge_count > 0, f"Knowledge cards indexed: {knowledge_count}"),
         (
             usage.free > 5 * 1024**3,
@@ -110,4 +113,3 @@ def run_doctor(settings: Settings) -> int:
 
 if __name__ == "__main__":
     main()
-

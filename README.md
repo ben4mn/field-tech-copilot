@@ -1,5 +1,7 @@
 # Field Tech Copilot
 
+[Download the Windows Field Kit](https://ben4mn.github.io/field-tech-copilot/) · [Release notes](https://github.com/ben4mn/field-tech-copilot/releases) · [Windows distribution guide](docs/WINDOWS_DISTRIBUTION.md)
+
 Field Tech Copilot is an offline-first diagnostic case notebook for computer repair work in places with unreliable connectivity. A technician describes the complaint, records observations and test results, and gets one evidence-based next test at a time. The application keeps diagnostic state outside the chat transcript, prevents accidental repeat testing, and grounds procedures in a curated local knowledge bundle.
 
 This repository is an early MVP foundation. It is decision support for a trained technician, not an autonomous repair tool. It does not execute commands, change customer systems, or guarantee a diagnosis.
@@ -14,11 +16,41 @@ This repository is an early MVP foundation. It is decision support for a trained
 - Requires warnings and technician confirmation for destructive or data-risking procedures.
 - Retrieves locally indexed procedure cards and only exposes citations that were actually retrieved.
 - Exports a concise Markdown case summary.
-- Supports a mock model for development and an Ollama adapter for fully local inference.
+- Supports a mock model for development, Ollama for a larger local model, and a
+  protected llama.cpp adapter for the bundled Windows Field Kit Lite.
+
+## One-click Windows field kit
+
+The GitHub Pages download site offers a single Windows x64 installer built from
+this repository. Field Kit Lite bundles:
+
+- the application and its Python runtime;
+- a pinned llama.cpp CPU runtime;
+- the official Apache-2.0 Qwen3-1.7B Q8_0 GGUF;
+- synthetic starter knowledge and third-party license files; and
+- a release checksum and machine-readable bundle manifest.
+
+After the installer is downloaded, setup and the core case workflow do not need
+an internet connection. The desktop launcher stores cases under
+`%LOCALAPPDATA%\FieldTechCopilot`, starts the model on a random loopback port
+with a per-session API key, opens the browser UI, and shuts the child runtime
+down when the app is quit.
+
+Field Kit Lite is deliberately small enough to fit GitHub's per-asset limit. Its
+1.7B model is useful for evaluating the workflow but is **not validated for
+field diagnosis**. Treat every result as untrusted decision support.
+
+Initial requirements: Windows 10 22H2 or Windows 11, x64 CPU, 8 GB RAM, and
+6 GB free disk space. Preview builds are unsigned unless the release shows a
+trusted Windows publisher; SmartScreen or organization policy may block an
+unsigned build.
 
 ## Quick start
 
-Prerequisites: Python 3.11+, [uv](https://docs.astral.sh/uv/), and optionally [Ollama](https://docs.ollama.com/) with a local model downloaded before going offline.
+Prerequisites for source development: Python 3.11+,
+[uv](https://docs.astral.sh/uv/), and optionally
+[Ollama](https://docs.ollama.com/) with a local model downloaded before going
+offline.
 
 ```bash
 uv sync --extra dev
@@ -37,7 +69,12 @@ ollama serve
 uv run fieldtech serve --provider ollama --model qwen3:8b
 ```
 
-The model is deliberately configurable. Keep the existing Qwen3 8B setup as the baseline and benchmark alternatives against the same gold cases before changing hardware or committing to a model.
+### Full local AI profile
+
+The model is deliberately configurable. Keep Qwen3 8B as the higher-quality
+baseline and benchmark alternatives against the same gold cases before changing
+hardware or committing to a model. This profile requires a separate model
+download before going offline and is not part of the one-file Lite installer.
 
 ## Commands
 
@@ -68,12 +105,19 @@ src/fieldtech/
 docs/           discovery analysis, architecture, safety, and delivery plan
 examples/       synthetic knowledge cards and gold cases
 tests/          deterministic unit and API tests
+site/           static GitHub Pages download site
+packaging/      reproducible Windows bundle and installer definitions
 ```
 
 Start with [the implementation plan](docs/IMPLEMENTATION_PLAN.md), [product brief](docs/PRODUCT_BRIEF.md), [architecture](docs/ARCHITECTURE.md), and [model/runtime benchmark plan](docs/MODEL_AND_RUNTIME.md).
 
 ## Privacy and repository hygiene
 
-Customer data, real repair transcripts, local databases, model files, generated embeddings, and licensed vendor manuals must not be committed. The source Discord conversation and personal contact information are intentionally excluded. Use synthetic or fully anonymized examples only.
+Customer data, real repair transcripts, local databases, model files, generated
+embeddings, and licensed vendor manuals must not be committed. The source
+conversation and personal contact information are intentionally excluded. Use
+synthetic or fully anonymized examples only.
 
-No license has been selected yet. Until ownership and distribution are agreed, treat this repository as private and all rights reserved.
+Original project code is source-available under [the repository license](LICENSE).
+Bundled third-party components retain their own terms; see
+[the third-party notices](THIRD_PARTY_NOTICES.md).

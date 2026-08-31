@@ -18,5 +18,4 @@ Do not open a public issue containing customer data, secrets, exploit details, o
 
 ## Repository exclusions
 
-Never commit runtime databases, case exports, logs, prompts containing customer data, licensed manuals without redistribution rights, embeddings, model weights, `.env` files, or the raw Discord transcript.
-
+Never commit runtime databases, case exports, logs, prompts containing customer data, licensed manuals without redistribution rights, embeddings, model weights, `.env` files, or the raw source conversation.

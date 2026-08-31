@@ -17,9 +17,10 @@ class Settings:
     host: str = "127.0.0.1"
     port: int = 8765
     data_dir: Path = Path("data")
-    model_provider: str = "ollama"
+    model_provider: str = "mock"
     model_base_url: str = "http://127.0.0.1:11434"
     model_name: str = "qwen3:8b"
+    model_api_key: str | None = None
     model_timeout_seconds: float = 120.0
     model_reasoning_effort: str = "medium"
     allow_remote: bool = False
@@ -34,6 +35,7 @@ class Settings:
             model_provider=os.getenv("FIELDTECH_MODEL_PROVIDER", defaults.model_provider),
             model_base_url=os.getenv("FIELDTECH_MODEL_BASE_URL", defaults.model_base_url),
             model_name=os.getenv("FIELDTECH_MODEL_NAME", defaults.model_name),
+            model_api_key=os.getenv("FIELDTECH_MODEL_API_KEY", defaults.model_api_key),
             model_timeout_seconds=float(
                 os.getenv("FIELDTECH_MODEL_TIMEOUT_SECONDS", defaults.model_timeout_seconds)
             ),
@@ -56,8 +58,10 @@ class Settings:
         return settings
 
     def validate(self) -> None:
-        if self.model_provider not in {"mock", "ollama"}:
-            raise ValueError("FIELDTECH_MODEL_PROVIDER must be 'mock' or 'ollama'")
+        if self.model_provider not in {"llama_cpp", "mock", "ollama"}:
+            raise ValueError(
+                "FIELDTECH_MODEL_PROVIDER must be 'llama_cpp', 'mock', or 'ollama'"
+            )
         loopback_hosts = {"127.0.0.1", "localhost", "::1"}
         if not self.allow_remote and self.host not in loopback_hosts:
             raise ValueError(

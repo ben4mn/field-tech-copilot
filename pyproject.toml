@@ -4,7 +4,7 @@ build-backend = "hatchling.build"
 
 [project]
 name = "field-tech-copilot"
-version = "0.1.0"
+version = "0.2.0"
 description = "An offline-first diagnostic case copilot for field computer technicians"
 readme = "README.md"
 requires-python = ">=3.11"
@@ -21,6 +21,10 @@ dev = [
   "pytest>=8.4,<9",
   "pytest-cov>=6.2,<7",
   "ruff>=0.12,<1",
+]
+package-windows = [
+  "pip-licenses>=5.5,<6",
+  "pyinstaller>=6.16,<7",
 ]
 
 [project.scripts]

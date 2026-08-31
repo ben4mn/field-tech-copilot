@@ -24,7 +24,7 @@ Deliverables:
 
 - Local browser UI with create, list, open, and export case flows.
 - SQLite persistence for observations, completed tests, and assessments.
-- Replaceable model provider with mock and Ollama implementations.
+- Replaceable model provider with mock, Ollama, and protected llama.cpp implementations.
 - Schema-validated hypotheses and exactly one proposed next test.
 - Deterministic duplicate-test guard.
 - Risk validation and confirmation requirement for destructive work.
@@ -63,7 +63,7 @@ Deliverables:
 
 Exit criteria:
 
-- Josh completes representative real cases without needing cloud fallback for the core flow.
+- The pilot technician completes representative real cases without needing cloud fallback for the core flow.
 - Initial gold-set usefulness reaches 80% without a critical safety failure.
 - The top failure patterns are categorized as model, prompt, retrieval, knowledge, or UI problems.
 
@@ -86,10 +86,10 @@ Voice, multimodal photos, command execution, multi-technician support, and comme
 | --- | --- | --- |
 | P0 | Collect missing laptop specs | All candidates recorded in the benchmark sheet |
 | P0 | Import 20 gold cases | No customer identifiers; expected next test and safety notes included |
-| P0 | Validate the current scaffold with Josh | One real but anonymized case completed end to end |
+| P0 | Validate the current scaffold with the pilot technician | One real but anonymized case completed end to end |
 | P0 | Benchmark Qwen3 8B baseline | Quality, first-token time, total time, and memory recorded |
 | P1 | Compare current model candidates | Same prompts, context, cases, and scoring as baseline |
 | P1 | Curate networking cards | Sources and risk metadata complete; retrieval checks pass |
 | P1 | Add technician turn rating | Stored locally and included in evaluation export |
 | P2 | Optional semantic retrieval | Adopt only if it fixes measured FTS misses |
-| P2 | Windows packaging | One-click launcher plus offline recovery instructions |
+| P2 | Windows packaging | One-file Lite installer, signed field release, and offline recovery instructions |

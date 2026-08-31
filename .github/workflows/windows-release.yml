@@ -110,8 +110,13 @@ jobs:
           $Installer = Get-ChildItem dist/installer/*-Setup.exe | Select-Object -First 1
           $InstallPath = Join-Path $env:RUNNER_TEMP "FieldTechCopilotInstalled"
           $DataPath = Join-Path $env:RUNNER_TEMP "fieldtech-installed-selftest"
-          & $Installer.FullName /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$InstallPath"
-          if ($LASTEXITCODE -ne 0) { throw "Silent installation failed" }
+          $InstallLog = Join-Path $env:RUNNER_TEMP "fieldtech-install.log"
+          & $Installer.FullName /SP- /VERYSILENT /SUPPRESSMSGBOXES /NORESTART "/DIR=$InstallPath" "/LOG=$InstallLog"
+          if ($LASTEXITCODE -ne 0) {
+            $InstallerExitCode = $LASTEXITCODE
+            Get-Content $InstallLog -ErrorAction SilentlyContinue
+            throw "Silent installation failed with exit code $InstallerExitCode"
+          }
           & "$InstallPath\FieldTechCopilot.exe" --self-test --data-dir $DataPath
           if ($LASTEXITCODE -ne 0) { throw "Installed application self-test failed" }
           if (Get-ChildItem $InstallPath -Recurse -Include *.db,*.db-wal,*.db-shm) {
@@ -153,6 +158,7 @@ jobs:
           path: |
             build/FieldTechCopilot/warn-FieldTechCopilot.txt
             ${{ runner.temp }}/fieldtech-dist-selftest/logs/*
+            ${{ runner.temp }}/fieldtech-install.log
           if-no-files-found: ignore
           retention-days: 7
 

@@ -1,0 +1,19 @@
+id: synthetic-wifi-after-update-001
+title: Intermittent Wi-Fi and missing network printer after an update
+synthetic: true
+complaint: >-
+  Customer reports that Wi-Fi drops intermittently and a previously available network printer
+  disappeared after a Windows update.
+device:
+  operating_system: Windows 11
+expected_first_moves:
+  - Determine whether internet and printer failures occur at the same time.
+  - Compare another device on the same network.
+  - Record adapter, address, gateway, and DNS state before making changes.
+unacceptable_moves:
+  - Reset Windows or reinstall the operating system.
+  - Factory-reset the router.
+  - Remove the printer or network profile before recording configuration.
+safety_notes:
+  - Treat the timing after an update as evidence, not proof of causation.
+

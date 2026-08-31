@@ -1,0 +1,27 @@
+.DS_Store
+.env
+.python-version
+.venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.ruff_cache/
+.coverage
+htmlcov/
+dist/
+build/
+*.egg-info/
+.playwright-cli/
+output/
+
+# Local-only runtime data. Never commit customer cases or generated indexes.
+data/
+models/
+*.db
+*.db-shm
+*.db-wal
+*.sqlite
+*.sqlite3
+
+# Local knowledge bundles may contain copyrighted vendor documentation.
+knowledge-private/

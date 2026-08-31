@@ -1,0 +1,132 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1">
+    <meta name="fieldtech-token" content="__FIELDTECH_TOKEN__">
+    <title>Field Tech Copilot</title>
+    <link rel="icon" href="data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' rx='16' fill='%2310271e'/%3E%3Cpath d='M18 19h29v8H28v7h16v8H28v15H18z' fill='%23d9f36c'/%3E%3C/svg%3E">
+    <link rel="stylesheet" href="/static/styles.css">
+    <script src="/static/app.js" defer></script>
+  </head>
+  <body>
+    <header class="topbar">
+      <div class="brand">
+        <span class="brand-mark">FT</span>
+        <div>
+          <strong>Field Tech Copilot</strong>
+          <span>Offline diagnostic notebook</span>
+        </div>
+      </div>
+      <div id="health" class="health health-loading">Checking local stack…</div>
+    </header>
+
+    <main class="shell">
+      <aside class="sidebar">
+        <button id="new-case-toggle" class="primary wide" type="button">New case</button>
+        <form id="new-case-form" class="new-case-form hidden">
+          <label>
+            Short title <span>optional</span>
+            <input id="case-title" maxlength="300" placeholder="Wi-Fi drops after update">
+          </label>
+          <label>
+            Customer complaint
+            <textarea id="case-complaint" required rows="6" maxlength="8000" placeholder="Describe what the customer reported in their own words."></textarea>
+          </label>
+          <label>
+            Device / OS <span>optional</span>
+            <input id="case-device" maxlength="300" placeholder="Dell Latitude, Windows 11">
+          </label>
+          <div class="button-row">
+            <button class="primary" type="submit">Start case</button>
+            <button id="new-case-cancel" class="ghost" type="button">Cancel</button>
+          </div>
+        </form>
+        <div class="sidebar-heading">
+          <span>Cases</span>
+          <button id="reload-cases" class="icon-button" type="button" aria-label="Reload cases">↻</button>
+        </div>
+        <nav id="case-list" class="case-list" aria-label="Cases"></nav>
+      </aside>
+
+      <section id="workspace" class="workspace">
+        <div id="empty-state" class="empty-state">
+          <div class="empty-icon">⌁</div>
+          <h1>Keep the diagnostic thread intact.</h1>
+          <p>Start a case, record what you observe, and work one discriminating test at a time—even with no signal.</p>
+          <button id="empty-new-case" class="primary" type="button">Start a case</button>
+        </div>
+
+        <div id="case-view" class="case-view hidden">
+          <div class="case-header">
+            <div>
+              <div class="eyebrow">Active case</div>
+              <h1 id="view-title"></h1>
+              <p id="view-complaint" class="complaint"></p>
+            </div>
+            <div class="case-actions">
+              <button id="export-case" class="ghost" type="button">Export</button>
+              <button id="refresh-case" class="ghost" type="button">Reassess</button>
+              <button id="close-case" class="ghost" type="button">Close</button>
+              <button id="delete-case" class="danger-ghost" type="button">Delete</button>
+            </div>
+          </div>
+
+          <div id="case-error" class="alert alert-error hidden"></div>
+
+          <div class="case-grid">
+            <div class="main-column">
+              <section id="assessment-card" class="panel assessment-panel"></section>
+              <section id="next-action-card" class="panel next-action-panel"></section>
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <div class="eyebrow">New evidence</div>
+                    <h2>Record an observation</h2>
+                  </div>
+                </div>
+                <form id="observation-form">
+                  <textarea id="observation-text" required rows="3" maxlength="8000" placeholder="Example: Drops happen on Wi-Fi only; Ethernet stayed connected for 15 minutes."></textarea>
+                  <div class="form-footer">
+                    <span>Saved before the model reasons.</span>
+                    <button class="primary" type="submit">Record &amp; reassess</button>
+                  </div>
+                </form>
+              </section>
+              <section class="panel">
+                <div class="panel-heading">
+                  <div>
+                    <div class="eyebrow">Audit trail</div>
+                    <h2>Work completed</h2>
+                  </div>
+                </div>
+                <div id="timeline" class="timeline"></div>
+              </section>
+            </div>
+
+            <aside class="detail-column">
+              <section class="panel compact">
+                <div class="eyebrow">Device</div>
+                <div id="device-details" class="device-details"></div>
+              </section>
+              <section class="panel compact">
+                <div class="eyebrow">Hypotheses</div>
+                <div id="hypotheses" class="hypotheses"></div>
+              </section>
+              <section class="panel compact">
+                <div class="eyebrow">Local sources</div>
+                <div id="citations" class="citations"></div>
+              </section>
+            </aside>
+          </div>
+        </div>
+      </section>
+    </main>
+
+    <div id="busy" class="busy hidden" role="status" aria-live="polite">
+      <div class="spinner"></div>
+      <span>Reasoning locally… recorded data is already safe.</span>
+    </div>
+    <div id="toast" class="toast hidden" role="status"></div>
+  </body>
+</html>

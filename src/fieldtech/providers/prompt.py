@@ -57,9 +57,31 @@ def build_context(
         }
         for item in knowledge
     ]
+    completed_test_payload = [
+        {
+            "key": item.proposal.key,
+            "title": item.proposal.title,
+            "outcome": item.outcome,
+            "result": item.result,
+        }
+        for item in case.completed_tests
+    ]
+    recent_observation_payload = [item.text for item in case.observations[-5:]]
+    allowed_citation_ids = [item.card_id for item in knowledge]
+
     return (
         f"Reasoning effort requested: {reasoning_effort}\n\n"
         f"CASE_STATE\n{json.dumps(case_payload, indent=2)}\n\n"
-        f"KNOWLEDGE\n{json.dumps(knowledge_payload, indent=2)}"
+        f"KNOWLEDGE\n{json.dumps(knowledge_payload, indent=2)}\n\n"
+        f"COMPLETED_TESTS_DO_NOT_REPEAT\n"
+        f"{json.dumps(completed_test_payload, indent=2)}\n\n"
+        f"LATEST_RECORDED_OBSERVATIONS\n"
+        f"{json.dumps(recent_observation_payload, indent=2)}\n\n"
+        f"ALLOWED_CITATION_IDS\n"
+        f"{json.dumps(allowed_citation_ids, indent=2)}\n\n"
+        "FINAL CHECK: Propose a genuinely new test or a supported intervention. "
+        "Do not repeat anything listed under COMPLETED_TESTS_DO_NOT_REPEAT. "
+        "When KNOWLEDGE supports the response, include its exact card ID."
     )
+
 

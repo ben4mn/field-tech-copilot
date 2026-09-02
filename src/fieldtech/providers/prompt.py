@@ -79,6 +79,12 @@ def build_context(
         "Never propose powered hubs, external battery packs, bypass switches, "
         "voltage injection, direct power application, or improvised electrical methods. "
         "Use only a procedure supported by retrieved knowledge. "
+        "Never repeat a completed read-only test merely to revalidate it. "
+        "A repeat requires an exact changed condition recorded in the case history. "
+        "For every caution-level intervention, explicitly state that technician approval "
+        "is required before making changes and include the exact rollback procedure from "
+        "the cited knowledge card. When proposing a supported non-escalation intervention, "
+        "use disposition 'active', not 'escalate'. "
         "If supported non-disassembly tests are exhausted, escalate."
     )
 

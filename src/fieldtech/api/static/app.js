@@ -200,6 +200,7 @@ function renderNextAction(item) {
       <p>${escapeHtml(action.rationale)}</p>
       <ol class="steps">${action.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
       <div class="expected"><strong>Verify afterward</strong><ul>${action.verification.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></div>
+      ${action.rollback ? `<div class="expected"><strong>Rollback</strong><p>${escapeHtml(action.rollback)}</p></div>` : ""}
       ${action.requires_confirmation ? '<div class="alert alert-warning"><strong>Technician confirmation required.</strong> The app will not execute this intervention.</div>' : ""}
     `;
     return;

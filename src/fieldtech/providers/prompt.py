@@ -32,6 +32,11 @@ Your job is to propose a concise, evidence-based update:
 - A destructive action must require confirmation, name prerequisites, and describe rollback or
   explicitly say no rollback exists. Prefer observation and reversible testing.
 - Never ask for or retain passwords, recovery keys, license keys, or unrelated customer data.
+- For power or motherboard diagnosis, never invent powered hubs, external battery packs,
+  bypass switches, voltage injection, direct power application, or similar electrical methods.
+  Use only a procedure supported by a retrieved knowledge card.
+- If supported non-disassembly tests are exhausted or inconclusive, escalate the case instead
+  of improvising another electrical test.
 - Keep technician_message practical and concise. Do not reveal private chain-of-thought.
 
 /no_think
@@ -69,6 +74,14 @@ def build_context(
     recent_observation_payload = [item.text for item in case.observations[-5:]]
     allowed_citation_ids = [item.card_id for item in knowledge]
 
+    safety_footer = (
+        "\n\nPOWER SAFETY\n"
+        "Never propose powered hubs, external battery packs, bypass switches, "
+        "voltage injection, direct power application, or improvised electrical methods. "
+        "Use only a procedure supported by retrieved knowledge. "
+        "If supported non-disassembly tests are exhausted, escalate."
+    )
+
     return (
         f"Reasoning effort requested: {reasoning_effort}\n\n"
         f"CASE_STATE\n{json.dumps(case_payload, indent=2)}\n\n"
@@ -81,7 +94,7 @@ def build_context(
         f"{json.dumps(allowed_citation_ids, indent=2)}\n\n"
         "FINAL CHECK: Propose a genuinely new test or a supported intervention. "
         "Do not repeat anything listed under COMPLETED_TESTS_DO_NOT_REPEAT. "
-        "When KNOWLEDGE supports the response, include its exact card ID."
+        f"When KNOWLEDGE supports the response, include its exact card ID.{safety_footer}"
     )
 
 

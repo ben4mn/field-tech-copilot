@@ -8,6 +8,7 @@ from fieldtech.core.models import (
     CompletedTest,
     DeviceContext,
     DiagnosticCase,
+    Disposition,
     Observation,
 )
 from fieldtech.knowledge.store import KnowledgeSnippet, KnowledgeStore
@@ -127,6 +128,8 @@ class DiagnosticService:
                 },
             )
         except Exception as exc:
+            if isinstance(exc, GuardrailViolation):
+                self._withhold_stale_actions(case, str(exc))
             case.last_error = self._safe_error(exc)
             return self.database.save_case(
                 case,
@@ -217,6 +220,30 @@ class DiagnosticService:
             ]
         )
         return "\n".join(lines)
+
+    @staticmethod
+    def _withhold_stale_actions(case: DiagnosticCase, reason: str) -> None:
+        if case.assessment is None:
+            return
+
+        uncertainty = f"Latest model action was withheld by a safety guard: {reason}"
+        uncertainties = [*case.assessment.uncertainties]
+        if uncertainty not in uncertainties:
+            uncertainties.append(uncertainty)
+
+        case.assessment = case.assessment.model_copy(
+            update={
+                "next_test": None,
+                "intervention": None,
+                "disposition": Disposition.ESCALATE,
+                "technician_message": (
+                    "The latest proposed action was withheld by a safety guard. "
+                    "Do not perform the previous action; review the recorded evidence "
+                    "and use a supported procedure or escalate."
+                ),
+                "uncertainties": uncertainties[-12:],
+            }
+        )
 
     @staticmethod
     def _require_active(case: DiagnosticCase) -> None:

@@ -51,6 +51,14 @@ Name the startup failure correctly before choosing tests or parts.
 - External display works while the internal display does not: prioritize panel, cable, backlight, hinge path, or display selection.
 - POST completes and the disk is detected: move to operating-system or storage boot triage.
 
+# Latitude 5520 no-power rule
+
+Never propose a powered USB-C hub, dock, or USB-C accessory as a power bypass or internal-isolation test. It still uses the laptop's USB-C power-delivery controller, charging circuit, DC-in path, and motherboard power rails.
+
+For a completely unresponsive Latitude 5520, after testing a known-good Dell adapter directly in both charging ports, use Dell M-BIST as the next non-disassembly test. With the laptop off, hold the M key while pressing the power button. Record the battery-status LED and any amber/white blink pattern. Amber indicates a detected system-board fault. No LED, color cycle, or other response is inconclusive and must not be reported as a passed test.
+
+Do not recommend disassembly, RTC reset, internal rail testing, firmware changes, or part replacement without the exact model procedure, precautions, side effects, and confirmation.
+
 # Safety
 
 This card stops before disassembly, internal power-rail testing, RTC reset, firmware update, or part replacement. Use the exact service manual and ESD controls for internal work.

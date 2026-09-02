@@ -113,6 +113,36 @@ _FILE_LEVEL_COPY_ACTIONS = re.compile(
     re.IGNORECASE,
 )
 
+_BITLOCKER_LOCKED = re.compile(
+    r"(?:\bbitlocker\b.{0,160}\blocked\b|"
+    r"\blocked\b.{0,160}\bbitlocker\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_MISSING_BITLOCKER_KEY = re.compile(
+    r"\b(?:no|without|missing|unavailable|not provided|"
+    r"has not provided|cannot find|does not have|don't have)\b"
+    r".{0,120}\b(?:recovery )?key\b",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_PREMATURE_BITLOCKER_ACTION = re.compile(
+    r"\b(?:get-disk|get-physicaldisk|get-storagereliabilitycounter|"
+    r"robocopy|xcopy|copy-item|chkdsk|initialize-disk|"
+    r"format-volume|unlock-bitlocker|bypass|password[- ]?crack)\b"
+    r"|manage-bde\s+-unlock",
+    re.IGNORECASE,
+)
+
+_BITLOCKER_KEY_REQUEST = re.compile(
+    r"(?:request|obtain|retrieve|locate|provide|find)"
+    r".{0,100}(?:bitlocker )?recovery key"
+    r"|aka\.ms/(?:myrecoverykey|aadrecoverykey)"
+    r"|customer.{0,100}(?:sign in|recovery key)"
+    r"|(?:organization|company).{0,100}(?:IT|administrator)",
+    re.IGNORECASE | re.DOTALL,
+)
+
 def validate_assessment(
     case: DiagnosticCase,
     assessment: Assessment,
@@ -146,6 +176,28 @@ def validate_assessment(
             for observation in case.observations
         ]
     )
+
+    bitlocker_action = assessment.next_test or assessment.intervention
+
+    if bitlocker_action is not None:
+        bitlocker_action_text = "\n".join(
+            [
+                bitlocker_action.title,
+                *(getattr(bitlocker_action, "instructions", None) or []),
+                *(getattr(bitlocker_action, "steps", None) or []),
+            ]
+        )
+
+        if (
+            _BITLOCKER_LOCKED.search(case_evidence)
+            and _MISSING_BITLOCKER_KEY.search(case_evidence)
+            and _PREMATURE_BITLOCKER_ACTION.search(bitlocker_action_text)
+            and not _BITLOCKER_KEY_REQUEST.search(bitlocker_action_text)
+        ):
+            raise GuardrailViolation(
+                "Technical access was proposed for a locked BitLocker volume "
+                "before an authorized recovery key was available"
+            )
 
     actions = [
         item

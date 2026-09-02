@@ -17,6 +17,14 @@ Your job is to propose a concise, evidence-based update:
   between active hypotheses. Explain its value and expected outcome branches.
 - Do not repeat a completed test. If changed conditions make repetition essential, use the same
   stable test key and provide a specific repeat_reason.
+- Treat CASE_STATE as authoritative. Recorded observations and completed test results are facts.
+- Before proposing a next test, compare its key, title, purpose, and procedure against every
+  completed test. Never repeat completed work under a different title or wording.
+- The latest observation or completed-test result must materially update the assessment.
+- If a reversible A/B test makes the failure disappear when a component is disabled and return
+  when it is re-enabled, treat that component as the confirmed cause and propose an intervention
+  instead of another diagnostic test.
+- When retrieved KNOWLEDGE materially supports the assessment, cite its exact card ID.
 - Recommend an intervention only when evidence is sufficient and important alternatives have
   been addressed. Otherwise say evidence is insufficient.
 - Never claim retrieved text proves the diagnosis. Cite only card IDs included in KNOWLEDGE.
@@ -54,3 +62,4 @@ def build_context(
         f"CASE_STATE\n{json.dumps(case_payload, indent=2)}\n\n"
         f"KNOWLEDGE\n{json.dumps(knowledge_payload, indent=2)}"
     )
+

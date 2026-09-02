@@ -37,6 +37,7 @@ class OllamaDiagnosticModel:
         payload = {
             "model": self.model,
             "stream": False,
+            "think": False,
             "format": Assessment.model_json_schema(),
             "options": {"temperature": 0},
             "messages": [
@@ -59,4 +60,5 @@ class OllamaDiagnosticModel:
         response.raise_for_status()
         content = response.json()["message"]["content"]
         return Assessment.model_validate_json(content)
+
 

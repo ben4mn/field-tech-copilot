@@ -1,8 +1,12 @@
 from __future__ import annotations
 
+import json
+
+import json
+
 import httpx
 
-from fieldtech.core.models import Assessment, DiagnosticCase
+from fieldtech.core.models import Assessment, DiagnosticCase, action_fingerprint
 from fieldtech.knowledge.store import KnowledgeSnippet
 from fieldtech.providers.prompt import SYSTEM_PROMPT, build_context
 
@@ -131,4 +135,29 @@ class LlamaCppDiagnosticModel:
             response = client.post(f"{self.base_url}/chat/completions", json=payload)
             response.raise_for_status()
         content = response.json()["choices"][0]["message"]["content"]
-        return Assessment.model_validate_json(content)
+        data = json.loads(content)
+        if data.get("next_test") is not None and data.get("intervention") is not None:
+            candidate = data.get("next_test") or {}
+            candidate_key = action_fingerprint(
+                str(candidate.get("key") or candidate.get("title") or "")
+            )
+            candidate_title = action_fingerprint(str(candidate.get("title") or ""))
+            completed_titles = {
+                action_fingerprint(item.proposal.title)
+                for item in case.completed_tests
+            }
+
+            if (
+                candidate_key in case.completed_test_keys
+                or candidate_title in completed_titles
+            ):
+                data["next_test"] = None
+            else:
+                data["intervention"] = None
+                if data.get("disposition") == "ready_to_intervene":
+                    data["disposition"] = "active"
+
+        return Assessment.model_validate(data)
+
+
+

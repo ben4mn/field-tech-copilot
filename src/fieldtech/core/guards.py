@@ -96,6 +96,23 @@ def _require_material_repeat_reason(
         )
 
 
+_UNSTABLE_STORAGE_EVIDENCE = re.compile(
+    r"(?:not initialized|uninitialized|unknown partition|"
+    r"disappears?|disconnects?|drops? offline|"
+    r"spins?(?: up)?.{0,80}(?:stops?|down|disappears?)|"
+    r"stops? spinning|clicking|read errors?|i/o errors?|"
+    r"no (?:stable )?(?:mounted )?volume|"
+    r"cannot stay (?:online|detected|enumerated))",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_FILE_LEVEL_COPY_ACTIONS = re.compile(
+    r"(?:\brobocopy\b|\bxcopy\b|\bcopy-item\b|"
+    r"\bfile explorer\b|\bdrag(?:-and-| and )drop\b|"
+    r"\bcopy(?:ing)? (?:customer |user |readable |all )?files?\b)",
+    re.IGNORECASE,
+)
+
 def validate_assessment(
     case: DiagnosticCase,
     assessment: Assessment,
@@ -122,6 +139,14 @@ def validate_assessment(
                 proposal.repeat_reason,
             )
 
+    case_evidence = "\n".join(
+        [case.complaint]
+        + [
+            observation.model_dump_json()
+            for observation in case.observations
+        ]
+    )
+
     actions = [
         item
         for item in (assessment.next_test, assessment.intervention)
@@ -130,6 +155,22 @@ def validate_assessment(
 
     for action in actions:
         procedure = _procedure_text(action)
+        storage_action_text = "\n".join(
+            [
+                action.title,
+                *(getattr(action, "instructions", None) or []),
+                *(getattr(action, "steps", None) or []),
+            ]
+        )
+
+        if (
+            _UNSTABLE_STORAGE_EVIDENCE.search(case_evidence)
+            and _FILE_LEVEL_COPY_ACTIONS.search(storage_action_text)
+        ):
+            raise GuardrailViolation(
+                "File-level copy was proposed for an unstable, disappearing, "
+                "or inaccessible source drive"
+            )
 
         if any(
             pattern.search(procedure)

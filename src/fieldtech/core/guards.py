@@ -143,6 +143,14 @@ _BITLOCKER_KEY_REQUEST = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+_BITLOCKER_DATA_ACCESS = re.compile(
+    r"(?:\bunlock(?:ing)?\b.{0,120}\bbitlocker\b|"
+    r"\bbitlocker\b.{0,120}\bunlock(?:ing)?\b|"
+    r"\b(?:robocopy|xcopy|copy-item)\b|"
+    r"\bcopy(?:ing)?\b.{0,120}\b(?:files?|folders?|documents?|pictures?)\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+
 def validate_assessment(
     case: DiagnosticCase,
     assessment: Assessment,
@@ -199,6 +207,20 @@ def validate_assessment(
                 "before an authorized recovery key was available"
             )
 
+        if (
+            _BITLOCKER_LOCKED.search(case_evidence)
+            and _BITLOCKER_DATA_ACCESS.search(bitlocker_action_text)
+        ):
+            if bitlocker_action.risk == RiskLevel.SAFE:
+                raise GuardrailViolation(
+                    "BitLocker unlocking or data access was incorrectly marked safe"
+                )
+
+            if not bitlocker_action.requires_confirmation:
+                raise GuardrailViolation(
+                    "BitLocker unlocking or data access did not require "
+                    "technician confirmation"
+                )
     actions = [
         item
         for item in (assessment.next_test, assessment.intervention)

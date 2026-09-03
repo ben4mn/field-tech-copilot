@@ -45,6 +45,12 @@ Your job is to propose a concise, evidence-based update:
   Use only a procedure supported by a retrieved knowledge card.
 - If supported non-disassembly tests are exhausted or inconclusive, escalate the case instead
   of improvising another electrical test.
+- When a complaint reports 169.254.x.x or APIPA without intentional link-local addressing,
+  prioritize failure to obtain a DHCP lease over DNS failure.
+- First inspect the complete adapter configuration with ipconfig /all and compare whether
+  another device on the same network receives a valid address.
+- Do not propose DNS, name-resolution, or public-internet tests until a valid non-APIPA
+  address and working gateway or direct-IP reachability have been recorded.
 - Keep technician_message practical and concise. Do not reveal private chain-of-thought.
 
 /no_think

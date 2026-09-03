@@ -151,6 +151,32 @@ _BITLOCKER_DATA_ACCESS = re.compile(
     re.IGNORECASE | re.DOTALL,
 )
 
+_APIPA_EVIDENCE = re.compile(
+    r"(?:\bAPIPA\b|\b169\.254(?:\.\d{1,3}){0,2}\b)",
+    re.IGNORECASE,
+)
+
+_PREMATURE_APIPA_DNS_TEST = re.compile(
+    r"(?:\bDNS\b|\bname[- ]resolution\b|\bnslookup\b|"
+    r"\bresolve-dnsname\b|\bset-dnsclientserveraddress\b|"
+    r"\b(?:alternate|public)\s+DNS\b|"
+    r"\b(?:8\.8\.8\.8|1\.1\.1\.1)\b|"
+    r"\b(?:public internet|internet reachability|public IP)\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+
+_APIPA_ADDRESSING_RECOVERED = re.compile(
+    r"(?:\b(?:valid|normal|non[- ]?APIPA)\b.{0,160}"
+    r"\b(?:IPv4|IP address|DHCP lease|lease)\b.{0,240}"
+    r"\b(?:default gateway|gateway|direct IP)\b.{0,100}"
+    r"\b(?:reachable|responded|responds|successful)\b|"
+    r"\b(?:default gateway|gateway|direct IP)\b.{0,100}"
+    r"\b(?:reachable|responded|responds|successful)\b.{0,240}"
+    r"\b(?:valid|normal|non[- ]?APIPA)\b.{0,160}"
+    r"\b(?:IPv4|IP address|DHCP lease|lease)\b)",
+    re.IGNORECASE | re.DOTALL,
+)
+
 def validate_assessment(
     case: DiagnosticCase,
     assessment: Assessment,
@@ -184,6 +210,35 @@ def validate_assessment(
             for observation in case.observations
         ]
     )
+
+    apipa_evidence = "\n".join(
+        [case_evidence]
+        + [
+            completed_test.model_dump_json()
+            for completed_test in case.completed_tests
+        ]
+    )
+    apipa_action = assessment.next_test or assessment.intervention
+
+    if apipa_action is not None:
+        apipa_action_text = "\n".join(
+            [
+                apipa_action.title,
+                getattr(apipa_action, "rationale", "") or "",
+                *(getattr(apipa_action, "instructions", None) or []),
+                *(getattr(apipa_action, "steps", None) or []),
+            ]
+        )
+
+        if (
+            _APIPA_EVIDENCE.search(apipa_evidence)
+            and _PREMATURE_APIPA_DNS_TEST.search(apipa_action_text)
+            and not _APIPA_ADDRESSING_RECOVERED.search(apipa_evidence)
+        ):
+            raise GuardrailViolation(
+                "DNS or public-internet testing was proposed before "
+                "APIPA addressing was resolved"
+            )
 
     bitlocker_action = assessment.next_test or assessment.intervention
 

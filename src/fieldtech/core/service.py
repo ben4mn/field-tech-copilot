@@ -3,6 +3,7 @@ from __future__ import annotations
 from fieldtech.core.database import Database
 from fieldtech.core.guards import GuardrailViolation, validate_assessment
 from fieldtech.core.models import (
+    Assessment,
     CaseStatus,
     Citation,
     CompletedTest,
@@ -113,29 +114,55 @@ class DiagnosticService:
     def refresh_assessment(self, case: DiagnosticCase) -> DiagnosticCase:
         query = self._retrieval_query(case)
         snippets = self.knowledge.search(query)
-        try:
-            assessment = self.model.assess(case, snippets)
-            self._hydrate_citations(assessment, snippets)
-            validate_assessment(case, assessment)
-            case.assessment = assessment
-            case.last_error = None
-            return self.database.save_case(
-                case,
-                event_type="assessment.accepted",
-                event_payload={
-                    "model": self.model.name,
-                    "assessment": assessment.model_dump(mode="json"),
-                },
-            )
-        except Exception as exc:
-            if isinstance(exc, GuardrailViolation):
+        guardrail_retry_count = 0
+
+        for attempt in range(2):
+            try:
+                assessment = self.model.assess(case, snippets)
+                self._hydrate_citations(assessment, snippets)
+                validate_assessment(case, assessment)
+                self._synchronize_technician_message(assessment)
+                case.assessment = assessment
+                case.last_error = None
+                return self.database.save_case(
+                    case,
+                    event_type="assessment.accepted",
+                    event_payload={
+                        "model": self.model.name,
+                        "assessment": assessment.model_dump(mode="json"),
+                        "guardrail_retry_count": guardrail_retry_count,
+                    },
+                )
+            except GuardrailViolation as exc:
                 self._withhold_stale_actions(case, str(exc))
-            case.last_error = self._safe_error(exc)
-            return self.database.save_case(
-                case,
-                event_type="assessment.rejected",
-                event_payload={"model": self.model.name, "error": case.last_error},
-            )
+                case.last_error = self._safe_error(exc)
+
+                if attempt == 0:
+                    guardrail_retry_count = 1
+                    continue
+
+                return self.database.save_case(
+                    case,
+                    event_type="assessment.rejected",
+                    event_payload={
+                        "model": self.model.name,
+                        "error": case.last_error,
+                        "guardrail_retry_count": guardrail_retry_count,
+                    },
+                )
+            except Exception as exc:
+                case.last_error = self._safe_error(exc)
+                return self.database.save_case(
+                    case,
+                    event_type="assessment.rejected",
+                    event_payload={
+                        "model": self.model.name,
+                        "error": case.last_error,
+                        "guardrail_retry_count": guardrail_retry_count,
+                    },
+                )
+
+        raise RuntimeError("Assessment retry loop ended unexpectedly")
 
     def export_markdown(self, case_id: str) -> str:
         case = self.get_case(case_id)
@@ -220,6 +247,56 @@ class DiagnosticService:
             ]
         )
         return "\n".join(lines)
+
+    @staticmethod
+    def _synchronize_technician_message(assessment: Assessment) -> None:
+        if assessment.next_test is not None:
+            action_title = assessment.next_test.title.strip().rstrip(".")
+            action_steps = assessment.next_test.instructions
+            message_label = "Next test"
+            requires_confirmation = assessment.next_test.requires_confirmation
+        elif assessment.intervention is not None:
+            action_title = assessment.intervention.title.strip().rstrip(".")
+            action_steps = assessment.intervention.steps
+            message_label = "Proposed intervention"
+            requires_confirmation = assessment.intervention.requires_confirmation
+        elif assessment.disposition == Disposition.ESCALATE:
+            assessment.technician_message = (
+                "No technician action is proposed. "
+                "The structured disposition is escalation."
+            )
+            return
+        elif assessment.clarifying_questions:
+            assessment.technician_message = (
+                "No technician action is proposed until the listed "
+                "clarifying questions are resolved."
+            )
+            return
+        else:
+            assessment.technician_message = (
+                "No technician action is proposed from the current evidence."
+            )
+            return
+
+        message_parts = [f"{message_label}: {action_title}."]
+
+        if requires_confirmation:
+            message_parts.append(
+                "Technician confirmation is required before starting."
+            )
+
+        for step in action_steps:
+            clean_step = step.strip()
+            if not clean_step:
+                continue
+
+            candidate = " ".join([*message_parts, clean_step])
+            if len(candidate) > 4_000:
+                break
+
+            message_parts.append(clean_step)
+
+        assessment.technician_message = " ".join(message_parts)
 
     @staticmethod
     def _withhold_stale_actions(case: DiagnosticCase, reason: str) -> None:

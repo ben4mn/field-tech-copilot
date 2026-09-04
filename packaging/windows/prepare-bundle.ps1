@@ -116,7 +116,19 @@ $KnowledgePath = Join-Path $DistPath "knowledge"
 if (Test-Path $KnowledgePath) {
     Remove-Item -Recurse -Force $KnowledgePath
 }
-Copy-Item -Recurse (Join-Path $RepoRoot "examples/knowledge") $KnowledgePath
+New-Item -ItemType Directory -Force -Path $KnowledgePath | Out-Null
+$ExampleKnowledgeSource = Join-Path $RepoRoot "examples/knowledge"
+$JoshKnowledgeSource = Join-Path `
+    $RepoRoot `
+    "knowledge/josh-and-sons-fieldtech-knowledge-v1"
+Copy-Item `
+    -Recurse `
+    -Path $ExampleKnowledgeSource `
+    -Destination (Join-Path $KnowledgePath "examples")
+Copy-Item `
+    -Recurse `
+    -Path $JoshKnowledgeSource `
+    -Destination (Join-Path $KnowledgePath "josh-and-sons-fieldtech-knowledge-v1")
 
 $LicensesPath = Join-Path $DistPath "licenses"
 New-Item -ItemType Directory -Force -Path $LicensesPath | Out-Null
@@ -149,7 +161,7 @@ $Manifest = [ordered]@{
         version = $RuntimeVersion.ToString()
         files = $AppLocalRuntimeFiles
     }
-    knowledgePackVersion = 1
+    knowledgePackVersion = 2
 }
 $Manifest | ConvertTo-Json -Depth 6 | Set-Content -Encoding UTF8 (Join-Path $DistPath "bundle-manifest.json")
 

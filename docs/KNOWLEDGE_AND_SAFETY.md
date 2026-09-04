@@ -39,10 +39,15 @@ A destructive card and any derived recommendation must state:
 - Returned citations are intersected with the retrieved IDs.
 - Structured output validation rejects destructive steps without confirmation and rollback language.
 - Duplicate-test fingerprints are compared against completed tests.
+- Unstable-storage and encryption guards evaluate complaint, observations, and completed action results rather than only the latest prompt text.
+- File-level copying from unstable original media is blocked; a completed and verified image or duplicate can be the source.
+- Severe mechanical symptoms with irreplaceable data require power-off and professional-recovery escalation; less severe controlled imaging is a confirmed `caution` intervention with explicit source, destination, customer-risk, and rollback controls.
+- BitLocker unlock or data access is accepted only as a confirmed `caution` intervention with authorization, matching key-ID prerequisites, and rollback.
+- Recovery keys are rejected before persistence and must be entered privately by the customer in Windows.
+- The current action is invalidated before new evidence or model work, and completion uses an atomic compare-and-swap write.
 - The application never interprets model text as executable code.
 - Model reasoning is advisory; the technician records what was actually done.
 
 ## Review and freshness
 
 Cards should include a `verified_at` date and optional `review_after` date. The UI should mark stale material rather than silently treating it as current. Knowledge releases should be versioned, signed or checksummed, and tested against retrieval queries before installation on the offline laptop.
-

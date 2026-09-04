@@ -49,3 +49,10 @@ Buy an upgrade only if it clears an agreed field threshold, such as materially i
 
 The owned 12 GB RTX 3060 is a benchmark candidate, not an automatic recommendation. Confirm laptop eGPU support and compare end-to-end field value before spending money.
 
+## Current profile decision
+
+The 64 GB dual-channel Latitude 5550 is the intended capacity profile for
+Qwen3-30B-A3B Q4_K_M. Qwen3 8B remains the fallback and comparison control.
+This does not make the RAM upgrade an automatic recommendation for another
+machine: repeat the seven synthetic cases, separate cold and warm runs, record
+the exact model/runtime hashes, and add technician ratings before spending.

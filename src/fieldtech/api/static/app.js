@@ -134,6 +134,7 @@ function showCase(item) {
   el("view-title").textContent = item.title;
   el("view-complaint").textContent = item.complaint;
   el("close-case").disabled = item.status === "closed";
+  el("refresh-case").disabled = item.status === "closed";
   renderCaseList();
   renderCase(item);
 }
@@ -166,18 +167,29 @@ function renderCase(item) {
 function renderNextAction(item) {
   const node = el("next-action-card");
   const assessment = item.assessment;
+  if (item.status === "closed") {
+    node.innerHTML = `
+      <div class="next-label"><span>Case closed</span></div>
+      <h2>No action is available.</h2>
+      <p>Create a new case before recording additional work.</p>
+    `;
+    return;
+  }
   if (assessment?.next_test) {
     const test = assessment.next_test;
     node.innerHTML = `
       <div class="next-label"><span>Next best test</span><span class="risk risk-${escapeHtml(test.risk)}">${escapeHtml(test.risk)}</span></div>
       <h2>${escapeHtml(test.title)}</h2>
       <p>${escapeHtml(test.rationale)}</p>
+      ${test.prerequisites?.length ? `<div class="expected"><strong>Prerequisites</strong><ul>${test.prerequisites.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></div>` : ""}
       <ol class="steps">${test.instructions.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
       ${test.expected_results?.length ? `<div class="expected"><strong>Useful result branches</strong><ul>${test.expected_results.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></div>` : ""}
+      ${test.rollback ? `<div class="expected"><strong>Rollback</strong><p>${escapeHtml(test.rollback)}</p></div>` : ""}
       ${test.repeat_reason ? `<div class="alert alert-warning"><strong>Repeat requested:</strong> ${escapeHtml(test.repeat_reason)}</div>` : ""}
       ${test.requires_confirmation ? `<div class="alert alert-warning"><strong>Confirmation required.</strong> Review prerequisites and rollback before performing this step.</div>` : ""}
       <form id="test-result-form" class="test-result-form">
         <label>What happened?<textarea id="test-result" required rows="3" maxlength="8000" placeholder="Record the observed result in normal language."></textarea></label>
+        <p class="privacy-note">Do not record passwords or recovery keys.</p>
         <div class="test-result-controls">
           <label>Outcome<select id="test-outcome"><option value="other">Other</option><option value="pass">Pass / expected</option><option value="fail">Fail / abnormal</option><option value="inconclusive">Inconclusive</option><option value="blocked">Blocked</option></select></label>
           ${test.requires_confirmation ? '<label class="confirm"><input id="test-confirmed" type="checkbox"> I reviewed and confirmed this risky step</label>' : ""}
@@ -198,10 +210,26 @@ function renderNextAction(item) {
       <div class="next-label"><span>Proposed intervention</span><span class="risk risk-${escapeHtml(action.risk)}">${escapeHtml(action.risk)}</span></div>
       <h2>${escapeHtml(action.title)}</h2>
       <p>${escapeHtml(action.rationale)}</p>
+      ${action.prerequisites?.length ? `<div class="expected"><strong>Prerequisites</strong><ul>${action.prerequisites.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></div>` : ""}
       <ol class="steps">${action.steps.map((step) => `<li>${escapeHtml(step)}</li>`).join("")}</ol>
       <div class="expected"><strong>Verify afterward</strong><ul>${action.verification.map((value) => `<li>${escapeHtml(value)}</li>`).join("")}</ul></div>
+      ${action.rollback ? `<div class="expected"><strong>Rollback</strong><p>${escapeHtml(action.rollback)}</p></div>` : ""}
+      ${action.repeat_reason ? `<div class="alert alert-warning"><strong>Repeat requested:</strong> ${escapeHtml(action.repeat_reason)}</div>` : ""}
       ${action.requires_confirmation ? '<div class="alert alert-warning"><strong>Technician confirmation required.</strong> The app will not execute this intervention.</div>' : ""}
+      <form id="intervention-result-form" class="test-result-form">
+        <label>What happened?<textarea id="intervention-result" required rows="3" maxlength="8000" placeholder="Record the verified intervention result in normal language."></textarea></label>
+        <p class="privacy-note">Do not record passwords or recovery keys.</p>
+        <div class="test-result-controls">
+          <label>Outcome<select id="intervention-outcome"><option value="other">Other</option><option value="pass">Successful</option><option value="fail">Unsuccessful</option><option value="inconclusive">Partial / inconclusive</option><option value="blocked">Blocked</option></select></label>
+          ${action.requires_confirmation ? '<label class="confirm"><input id="intervention-confirmed" type="checkbox"> I verified authorization, prerequisites, and rollback</label>' : ""}
+          <button class="primary" type="submit">Record intervention &amp; reassess</button>
+        </div>
+      </form>
     `;
+    el("intervention-result-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      await completeCurrentIntervention(action);
+    });
     return;
   }
 
@@ -261,6 +289,12 @@ function renderTimeline(item) {
       title: value.proposal.title,
       detail: `${value.outcome}: ${value.result}`,
     })),
+    ...(item.completed_interventions || []).map((value) => ({
+      at: value.completed_at,
+      label: "Intervention completed",
+      title: value.intervention.title,
+      detail: `${value.outcome}: ${value.result}`,
+    })),
   ].sort((a, b) => new Date(b.at) - new Date(a.at));
   el("timeline").innerHTML = events.length
     ? events
@@ -296,6 +330,22 @@ async function completeCurrentTest(test) {
   };
   const response = await withBusy(() =>
     api(`/api/cases/${state.current.id}/tests/${test.id}/complete`, {
+      method: "POST",
+      body: JSON.stringify(body),
+    }),
+  );
+  showCase(await response.json());
+  await loadCases(state.current.id);
+}
+
+async function completeCurrentIntervention(intervention) {
+  const body = {
+    result: el("intervention-result").value.trim(),
+    outcome: el("intervention-outcome").value,
+    confirmed: el("intervention-confirmed")?.checked || false,
+  };
+  const response = await withBusy(() =>
+    api(`/api/cases/${state.current.id}/interventions/${intervention.id}/complete`, {
       method: "POST",
       body: JSON.stringify(body),
     }),

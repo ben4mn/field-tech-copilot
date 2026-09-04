@@ -1,12 +1,12 @@
 # Model and runtime decision
 
-Last reviewed: 2026-08-31. Local-model tooling changes quickly; pin exact runtime versions and model digests for a field release.
+Last reviewed: 2026-09-04. Local-model tooling changes quickly; pin exact runtime versions and model digests for a field release.
 
 ## Decision for the first benchmark
 
-Use Ollama as the first Windows-native full-model runtime and keep the provider boundary small. Keep the existing Qwen3 8B setup as the control. A better model is one that improves the field-specific gold cases enough to justify its latency, memory, heat, battery, and installation cost—not one that wins an unrelated leaderboard.
+Keep the provider boundary small. Qwen3 8B remains the fallback and comparison control. On the tested Dell Latitude 5550 with 64 GB dual-channel memory, `qwen/qwen3-30b-a3b-2507` Q4_K_M through LM Studio is the current quality candidate. This is a profile decision, not a field-readiness claim: preserve the exact runtime settings and run the repository-owned synthetic suite plus technician review before promotion.
 
-Ollama is the first integration because it provides a local API, Windows support, embeddings, and JSON-schema-constrained structured output. `llama.cpp` remains the likely tuning/deployment path when direct control over GGUF quantization, CUDA/Vulkan/SYCL backends, and CPU/GPU hybrid offload becomes important. Its `llama-server` exposes OpenAI-compatible chat and embeddings APIs plus schema-constrained output.
+Ollama remains the simplest supported full-model integration because it provides a local API, Windows support, embeddings, and JSON-schema-constrained structured output. LM Studio's OpenAI-compatible local endpoint is useful for the measured 30B profile. `llama.cpp` remains the tuning/deployment path when direct control over GGUF quantization, CUDA/Vulkan/SYCL backends, and CPU/GPU hybrid offload is important. Its `llama-server` exposes OpenAI-compatible chat and embeddings APIs plus schema-constrained output.
 
 Field Kit Lite now uses that llama.cpp deployment path with the official Qwen3-1.7B Q8_0 GGUF. This is a packaging and workflow profile chosen because the complete installer fits GitHub's 2 GiB per-asset limit. It is not a quality replacement for the Qwen3 8B control and must not receive a field-ready label without passing the same gold set and trained-technician review.
 
@@ -25,7 +25,8 @@ Test in this order; do not purchase hardware first.
 
 | Profile | Why test it | Expected constraint |
 | --- | --- | --- |
-| Current Qwen3 8B | Known sub-20-second control and no migration cost | Establish actual quality, quantization, and memory baseline |
+| Current Qwen3 8B | Fallback/control with no migration cost | Preserve as the same-case reference; do not infer quality from speed alone |
+| Qwen3-30B-A3B-2507 Q4_K_M | Best observed behavior in the Latitude 5550 field run | 64 GB dual-channel quality profile; reproduce with raw cold/warm results before promotion |
 | Qwen3.5 9B Q4 | Newer small reasoning/tool/vision candidate; Ollama artifact is about 6.6 GB | Official card's long-context guidance may be unrealistic on this laptop; test 4K/8K/16K |
 | Qwen3 14B Q4 | Larger text reasoning candidate; Ollama artifact is about 9.3 GB | Context/KV overhead must still fit; compare full versus partial GPU offload |
 | gpt-oss 20B | Mixture-of-experts reasoning model with structured outputs and configurable reasoning | Ollama artifact is about 14 GB and official guidance says roughly 16 GB memory; a 12 GB GPU implies hybrid/system-memory use |
@@ -44,7 +45,7 @@ Artifact size is not peak RAM or VRAM. Add model runtime state, KV cache, prompt
 
 ## Context policy
 
-Start at the smallest context that contains a compact structured case plus 4–6 retrieved passages. Benchmark 4K, 8K, and 16K rather than setting the advertised maximum. Ollama documents a 4K default on systems below 24 GiB VRAM, and larger contexts increase memory use. Long raw transcripts and entire manuals should never enter the prompt.
+Start at the smallest context that contains a compact structured case plus no more than four retrieved passages. Benchmark 4K, 8K, and 16K rather than setting the advertised maximum. Ollama documents a 4K default on systems below 24 GiB VRAM, and larger contexts increase memory use. Long raw transcripts and entire manuals should never enter the prompt.
 
 ## Retrieval policy
 

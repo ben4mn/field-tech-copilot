@@ -43,6 +43,12 @@ class CompleteTestRequest(BaseModel):
     confirmed: bool = False
 
 
+class CompleteInterventionRequest(BaseModel):
+    result: str = Field(min_length=1, max_length=8_000)
+    outcome: Literal["pass", "fail", "inconclusive", "blocked", "other"] = "other"
+    confirmed: bool = False
+
+
 def create_app(
     settings: Settings | None = None,
     shutdown_callback: Callable[[], None] | None = None,
@@ -171,6 +177,24 @@ def create_app(
         return service.complete_test(
             case_id=case_id,
             test_id=test_id,
+            result=request.result,
+            outcome=request.outcome,
+            confirmed=request.confirmed,
+        )
+
+    @app.post(
+        "/api/cases/{case_id}/interventions/{intervention_id}/complete",
+        response_model=DiagnosticCase,
+        dependencies=auth,
+    )
+    def complete_intervention(
+        case_id: str,
+        intervention_id: str,
+        request: CompleteInterventionRequest,
+    ) -> DiagnosticCase:
+        return service.complete_intervention(
+            case_id=case_id,
+            intervention_id=intervention_id,
             result=request.result,
             outcome=request.outcome,
             confirmed=request.confirmed,

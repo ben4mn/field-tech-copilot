@@ -10,8 +10,11 @@ class DiagnosticModel(Protocol):
     name: str
 
     def assess(
-        self, case: DiagnosticCase, knowledge: list[KnowledgeSnippet]
+        self,
+        case: DiagnosticCase,
+        knowledge: list[KnowledgeSnippet],
+        *,
+        timeout_seconds: float | None = None,
     ) -> Assessment: ...
 
     def health(self) -> tuple[bool, str]: ...
-

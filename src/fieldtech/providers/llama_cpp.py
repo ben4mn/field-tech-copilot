@@ -1,5 +1,7 @@
 from __future__ import annotations
 
+import time
+
 import httpx
 
 from fieldtech.core.models import Assessment, DiagnosticCase
@@ -47,7 +49,7 @@ def assessment_generation_schema() -> dict[str, object]:
     properties.pop("generated_at", None)
     properties.pop("citations", None)
     definitions.pop("Citation", None)
-    for definition_name in ("Hypothesis", "TestProposal"):
+    for definition_name in ("Hypothesis", "TestProposal", "Intervention"):
         definition = definitions.get(definition_name)
         if isinstance(definition, dict) and isinstance(
             definition_properties := definition.get("properties"), dict
@@ -76,6 +78,8 @@ class LlamaCppDiagnosticModel:
         self.reasoning_effort = reasoning_effort
         self.api_key = api_key
         self.transport = transport
+        self.last_metrics: dict[str, object] = {}
+        self.metrics_history: list[dict[str, object]] = []
 
     def _client(self, timeout: float) -> httpx.Client:
         headers = {"Authorization": f"Bearer {self.api_key}"} if self.api_key else None
@@ -95,7 +99,14 @@ class LlamaCppDiagnosticModel:
         except (httpx.HTTPError, ValueError, TypeError) as exc:
             return False, f"Bundled local model is unavailable: {exc}"
 
-    def assess(self, case: DiagnosticCase, knowledge: list[KnowledgeSnippet]) -> Assessment:
+    def assess(
+        self,
+        case: DiagnosticCase,
+        knowledge: list[KnowledgeSnippet],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> Assessment:
+        self.last_metrics = {}
         payload = {
             "model": self.model,
             "temperature": 0.7,
@@ -105,7 +116,7 @@ class LlamaCppDiagnosticModel:
             "presence_penalty": 1.5,
             "seed": 42,
             "max_tokens": 2_048,
-            "reasoning_effort": "none",
+            "reasoning_effort": self.reasoning_effort,
             "response_format": {
                 "type": "json_schema",
                 "json_schema": {
@@ -127,8 +138,50 @@ class LlamaCppDiagnosticModel:
                 },
             ],
         }
-        with self._client(timeout=self.timeout_seconds) as client:
-            response = client.post(f"{self.base_url}/chat/completions", json=payload)
-            response.raise_for_status()
-        content = response.json()["choices"][0]["message"]["content"]
+        request_timeout = (
+            min(self.timeout_seconds, timeout_seconds)
+            if timeout_seconds is not None
+            else self.timeout_seconds
+        )
+        started = time.perf_counter()
+        try:
+            with self._client(timeout=request_timeout) as client:
+                response = client.post(f"{self.base_url}/chat/completions", json=payload)
+                response.raise_for_status()
+        except Exception:
+            self._record_metrics(
+                {"client_request_seconds": round(time.perf_counter() - started, 6)}
+            )
+            raise
+        response_payload = response.json()
+        self._record_metrics(
+            {
+                "client_request_seconds": round(time.perf_counter() - started, 6),
+                **self._response_metrics(response_payload),
+            }
+        )
+        content = response_payload["choices"][0]["message"]["content"]
         return Assessment.model_validate_json(content)
+
+    def _record_metrics(self, metrics: dict[str, object]) -> None:
+        self.last_metrics = metrics
+        self.metrics_history.append(metrics)
+        self.metrics_history = self.metrics_history[-8:]
+
+    @staticmethod
+    def _response_metrics(payload: object) -> dict[str, object]:
+        """Keep timing and token counters exposed by llama.cpp or LM Studio.
+
+        Both runtimes add telemetry to their OpenAI-compatible response, but the
+        optional keys and their exact contents vary by version. Retaining only
+        JSON-shaped telemetry sections makes benchmark output useful without
+        making successful inference depend on a particular runtime release.
+        """
+        if not isinstance(payload, dict):
+            return {}
+        metrics: dict[str, object] = {}
+        for key in ("usage", "timings", "stats"):
+            value = payload.get(key)
+            if isinstance(value, dict):
+                metrics[key] = value
+        return metrics

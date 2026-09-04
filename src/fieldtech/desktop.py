@@ -32,7 +32,7 @@ APP_HOST = "127.0.0.1"
 APP_PORT = 8765
 MODEL_ALIAS = "fieldtech-lite"
 MODEL_FILENAME = "Qwen3-1.7B-Q8_0.gguf"
-KNOWLEDGE_PACK_VERSION = "1"
+KNOWLEDGE_PACK_VERSION = "2"
 MUTEX_NAME = "FieldTechCopilotDesktop-8D4D48B8-9518-4BA1-A44B-2243D7D97E63"
 VC_RUNTIME_FILENAMES = ("msvcp140.dll", "vcruntime140.dll", "vcruntime140_1.dll")
 
@@ -121,6 +121,10 @@ def validate_bundle(paths: BundlePaths) -> dict[str, object]:
     if missing:
         raise RuntimeError("The offline bundle is incomplete. Missing: " + ", ".join(missing))
     manifest = json.loads(paths.manifest.read_text(encoding="utf-8"))
+    if str(manifest.get("knowledgePackVersion", "")) != KNOWLEDGE_PACK_VERSION:
+        raise RuntimeError(
+            "The bundled knowledge-pack version does not match this application"
+        )
     model = manifest.get("model", {})
     expected_size = int(model.get("size", 0)) if isinstance(model, dict) else 0
     if expected_size <= 0 or paths.model.stat().st_size != expected_size:

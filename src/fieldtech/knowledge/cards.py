@@ -11,7 +11,7 @@ from fieldtech.core.models import RiskLevel
 
 
 class ProcedureCard(BaseModel):
-    id: str = Field(pattern=r"^[a-z0-9][a-z0-9._-]+$")
+    id: str = Field(max_length=200, pattern=r"^[a-z0-9][a-z0-9._-]+$")
     title: str = Field(min_length=1, max_length=300)
     topics: list[str] = Field(min_length=1)
     risk: RiskLevel

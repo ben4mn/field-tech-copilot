@@ -11,6 +11,10 @@ source_title: Microsoft Set-DnsClientServerAddress documentation
 source_url: https://learn.microsoft.com/en-us/powershell/module/dnsclient/set-dnsclientserveraddress
 verified_at: 2026-09-02
 requires_elevation: true
+prerequisites:
+  - Confirm direct IP connectivity works and the configured resolver fails for the same domain.
+  - Record the interface alias and existing IPv4 DNS configuration, including whether it came from DHCP.
+  - Use only an organization-approved alternate resolver that already succeeded during testing.
 rollback: Restore the recorded static DNS addresses, or use ResetServerAddresses if DNS originally came from DHCP.
 ---
 

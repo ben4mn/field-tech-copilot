@@ -1,5 +1,6 @@
 from __future__ import annotations
 
+import inspect
 import time
 
 from fieldtech.core.database import Database
@@ -8,13 +9,20 @@ from fieldtech.core.models import (
     Assessment,
     CaseStatus,
     Citation,
+    CompletedIntervention,
     CompletedTest,
     DeviceContext,
     DiagnosticCase,
     Disposition,
     Observation,
+    new_id,
+    utc_now,
 )
-from fieldtech.core.privacy import SensitiveDataError, reject_sensitive_input
+from fieldtech.core.privacy import (
+    SensitiveDataError,
+    redact_sensitive_text,
+    reject_sensitive_input,
+)
 from fieldtech.knowledge.store import KnowledgeSnippet, KnowledgeStore
 from fieldtech.providers.base import DiagnosticModel
 
@@ -28,7 +36,7 @@ class InvalidCaseAction(ValueError):
 
 
 class DiagnosticService:
-    DEFAULT_GUARDRAIL_RETRY_BUDGET_SECONDS = 30.0
+    DEFAULT_GUARDRAIL_RETRY_BUDGET_SECONDS = 180.0
 
     def __init__(
         self,
@@ -150,10 +158,77 @@ class DiagnosticService:
             raise InvalidCaseAction("That test is no longer the current proposed test")
         return self.refresh_assessment(saved)
 
+    def complete_intervention(
+        self,
+        case_id: str,
+        intervention_id: str,
+        result: str,
+        outcome: str = "other",
+        confirmed: bool = False,
+    ) -> DiagnosticCase:
+        case = self.get_case(case_id)
+        self._require_active(case)
+        intervention = case.assessment.intervention if case.assessment else None
+        if intervention is None or intervention.id != intervention_id:
+            raise InvalidCaseAction(
+                "That intervention is no longer the current proposed intervention"
+            )
+        if intervention.id in case.completed_intervention_ids:
+            raise InvalidCaseAction("That proposed intervention has already been completed")
+        if intervention.requires_confirmation and not confirmed:
+            raise InvalidCaseAction(
+                "This intervention requires explicit technician confirmation"
+            )
+
+        clean_result = result.strip()
+        self._reject_sensitive_input(clean_result)
+        expected_updated_at = case.updated_at.isoformat()
+        completed = CompletedIntervention(
+            intervention=intervention,
+            result=clean_result,
+            outcome=outcome,
+            technician_confirmed=confirmed,
+        )
+        case.completed_interventions.append(completed)
+        self._invalidate_current_actions(
+            case,
+            uncertainty="The completed intervention invalidated the previous proposed action",
+            technician_message=(
+                "No technician action is proposed while the intervention result is assessed."
+            ),
+        )
+        saved = self.database.save_case_if_unmodified(
+            case,
+            expected_updated_at,
+            event_type="intervention.completed",
+            event_payload=completed.model_dump(mode="json"),
+        )
+        if saved is None:
+            raise InvalidCaseAction(
+                "That intervention is no longer the current proposed intervention"
+            )
+        return self.refresh_assessment(saved)
+
     def close_case(self, case_id: str) -> DiagnosticCase:
         case = self.get_case(case_id)
+        self._require_active(case)
+        expected_updated_at = case.updated_at.isoformat()
+        self._invalidate_current_actions(
+            case,
+            uncertainty="The case was closed and its previous action was invalidated",
+            technician_message="The case is closed. No technician action is proposed.",
+            disposition=Disposition.INSUFFICIENT_EVIDENCE,
+            force=True,
+        )
         case.status = CaseStatus.CLOSED
-        return self.database.save_case(case, event_type="case.closed")
+        saved = self.database.save_case_if_unmodified(
+            case,
+            expected_updated_at,
+            event_type="case.closed",
+        )
+        if saved is None:
+            raise InvalidCaseAction("The case changed before it could be closed; retry it")
+        return saved
 
     def delete_case(self, case_id: str) -> bool:
         if self.database.get_case(case_id) is None:
@@ -161,6 +236,7 @@ class DiagnosticService:
         return self.database.delete_case(case_id)
 
     def refresh_assessment(self, case: DiagnosticCase) -> DiagnosticCase:
+        self._require_active(case)
         expected_updated_at = case.updated_at.isoformat()
         if self._invalidate_current_actions(
             case,
@@ -186,7 +262,7 @@ class DiagnosticService:
 
         try:
             query = self._retrieval_query(case)
-            snippets = self.knowledge.search(query)
+            snippets = self.knowledge.search(query, limit=4)
         except Exception as exc:
             return self._record_assessment_failure(
                 case,
@@ -202,11 +278,21 @@ class DiagnosticService:
                     raise TimeoutError(
                         "guardrail repair exceeded the total retry time budget"
                     )
-                assessment = self.model.assess(case, snippets)
+                remaining_retry_seconds = (
+                    max(0.001, retry_deadline - time.monotonic())
+                    if attempt > 0
+                    else None
+                )
+                assessment = self._assess_model(
+                    case,
+                    snippets,
+                    timeout_seconds=remaining_retry_seconds,
+                )
                 if attempt > 0 and time.monotonic() > retry_deadline:
                     raise TimeoutError(
                         "guardrail repair exceeded the total retry time budget"
                     )
+                self._take_ownership_of_generated_fields(assessment)
                 self._hydrate_citations(assessment, snippets)
                 validate_assessment(case, assessment)
                 self._synchronize_technician_message(assessment)
@@ -264,6 +350,28 @@ class DiagnosticService:
 
         raise RuntimeError("Assessment retry loop ended unexpectedly")
 
+    def _assess_model(
+        self,
+        case: DiagnosticCase,
+        snippets: list[KnowledgeSnippet],
+        *,
+        timeout_seconds: float | None,
+    ) -> Assessment:
+        """Call new providers with a retry deadline without breaking legacy adapters."""
+        assess = self.model.assess
+        try:
+            parameters = inspect.signature(assess).parameters.values()
+        except (TypeError, ValueError):
+            parameters = ()
+        accepts_timeout = any(
+            parameter.name == "timeout_seconds"
+            or parameter.kind == inspect.Parameter.VAR_KEYWORD
+            for parameter in parameters
+        )
+        if timeout_seconds is not None and accepts_timeout:
+            return assess(case, snippets, timeout_seconds=timeout_seconds)
+        return assess(case, snippets)
+
     def export_markdown(self, case_id: str) -> str:
         case = self.get_case(case_id)
         lines = [
@@ -309,6 +417,22 @@ class DiagnosticService:
                 ]
             )
         if not case.completed_tests:
+            lines.append("- None recorded")
+
+        lines.extend(["", "## Completed interventions", ""])
+        for item in case.completed_interventions:
+            lines.extend(
+                [
+                    f"### {item.intervention.title}",
+                    "",
+                    f"- Outcome: {item.outcome}",
+                    f"- Technician confirmed: {'Yes' if item.technician_confirmed else 'No'}",
+                    f"- Result: {item.result}",
+                    f"- Completed: {item.completed_at.isoformat()}",
+                    "",
+                ]
+            )
+        if not case.completed_interventions:
             lines.append("- None recorded")
 
         if case.assessment:
@@ -490,6 +614,7 @@ class DiagnosticService:
         parts = [case.complaint]
         parts.extend(item.text for item in case.observations[-3:])
         parts.extend(item.result for item in case.completed_tests[-3:])
+        parts.extend(item.result for item in case.completed_interventions[-3:])
         if case.assessment:
             parts.extend(item.label for item in case.assessment.hypotheses[:5])
         return " ".join(parts)
@@ -503,13 +628,26 @@ class DiagnosticService:
 
     @staticmethod
     def _hydrate_citations(assessment: object, snippets: list[KnowledgeSnippet]) -> None:
-        requested = set(assessment.cited_card_ids)
+        requested = list(assessment.cited_card_ids)
         if assessment.next_test:
-            requested.update(assessment.next_test.cited_card_ids)
+            requested.extend(assessment.next_test.cited_card_ids)
         if assessment.intervention:
-            requested.update(assessment.intervention.cited_card_ids)
+            requested.extend(assessment.intervention.cited_card_ids)
+        requested = list(dict.fromkeys(requested))
         allowed = {item.card_id: item for item in snippets}
         assessment.cited_card_ids = [card_id for card_id in requested if card_id in allowed]
+        if assessment.next_test:
+            assessment.next_test.cited_card_ids = [
+                card_id
+                for card_id in dict.fromkeys(assessment.next_test.cited_card_ids)
+                if card_id in allowed
+            ]
+        if assessment.intervention:
+            assessment.intervention.cited_card_ids = [
+                card_id
+                for card_id in dict.fromkeys(assessment.intervention.cited_card_ids)
+                if card_id in allowed
+            ]
         assessment.citations = [
             Citation(
                 card_id=item.card_id,
@@ -524,7 +662,23 @@ class DiagnosticService:
         ]
 
     @staticmethod
+    def _take_ownership_of_generated_fields(assessment: Assessment) -> None:
+        assessment.generated_at = utc_now()
+        assessment.citations = []
+        for hypothesis in assessment.hypotheses:
+            hypothesis.id = new_id("hyp")
+        if assessment.next_test is not None:
+            assessment.next_test.id = new_id("test")
+        if assessment.intervention is not None:
+            assessment.intervention.id = new_id("intervention")
+
+    @staticmethod
     def _safe_error(exc: Exception) -> str:
         if isinstance(exc, GuardrailViolation):
-            return f"Guardrail rejected the model response: {exc}"
-        return f"Local reasoning failed; recorded data is safe: {type(exc).__name__}: {exc}"
+            message = f"Guardrail rejected the model response: {exc}"
+        else:
+            message = (
+                "Local reasoning failed; recorded data is safe: "
+                f"{type(exc).__name__}: {exc}"
+            )
+        return redact_sensitive_text(message)

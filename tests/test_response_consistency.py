@@ -36,6 +36,8 @@ def test_intervention_message_uses_only_structured_steps() -> None:
             rationale="Recover the stalled print service.",
             steps=["Restart the print spooler service."],
             verification=["Print a Windows test page."],
+            prerequisites=["Confirm the queued jobs can be safely interrupted."],
+            rollback="Start the print spooler service if it remains stopped.",
             requires_confirmation=True,
         ),
     )

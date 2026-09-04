@@ -13,8 +13,8 @@ topics:
 risk: caution
 source_title: GNU ddrescue manual
 source_url: https://www.gnu.org/software/ddrescue/manual/ddrescue_manual.html
-source_version: "accessed 2026-09-02"
-verified_at: 2026-09-02
+source_version: "GNU ddrescue 1.30 (2026-01-01)"
+verified_at: 2026-09-04
 review_after: 2027-03-01
 trust_tier: 1
 redistribution: paraphrased primary-source recovery guidance
@@ -22,6 +22,11 @@ platforms:
   - Windows 11
   - Linux recovery environment
 requires_elevation: true
+prerequisites:
+  - Attempt imaging only when the drive remains continuously detected and the customer accepts the risk.
+  - Verify the exact source identity and a healthy, empty destination larger than the source.
+side_effects:
+  - Any additional read or power cycle can worsen a mechanically failing drive and reduce recoverability.
 rollback: Stop imaging, preserve the image and mapfile, and leave the original drive unchanged and powered off.
 ---
 
@@ -53,7 +58,7 @@ Consider best-effort sector imaging only when the drive remains continuously det
 
 Verify the exact source model, serial number, capacity, and device path. Confirm the destination is healthy, empty, and larger than the source. Keep the source unmounted or read-only.
 
-A first GNU ddrescue pass should use a persistent mapfile and avoid scraping or retries:
+A first GNU ddrescue pass should use a persistent mapfile and `-n` to avoid the scraping phase or retries:
 
 `sudo ddrescue -n /dev/sdX /mnt/recovery/customer-drive.img /mnt/recovery/customer-drive.map`
 

@@ -1,13 +1,6 @@
 from pathlib import Path
 
-
-PROMPT_PATH = (
-    Path(__file__).parents[1]
-    / "src"
-    / "fieldtech"
-    / "providers"
-    / "prompt.py"
-)
+PROMPT_PATH = Path(__file__).parents[1] / "src" / "fieldtech" / "providers" / "prompt.py"
 
 
 def test_bitlocker_access_prompt_requires_caution_and_confirmation() -> None:
@@ -18,3 +11,6 @@ def test_bitlocker_access_prompt_requires_caution_and_confirmation() -> None:
     assert 'Do not call unlocking "decryption"' in prompt_source
     assert "the recovery-key ID as prerequisites" in prompt_source
     assert "relocking or safe disconnection as rollback" in prompt_source
+    assert "must be an intervention, never a" in prompt_source
+    assert "Represent authorization, private key retrieval, or" in prompt_source
+    assert "Never place a recovery key itself in case text" in prompt_source

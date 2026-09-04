@@ -93,3 +93,24 @@ Voice, multimodal photos, command execution, multi-technician support, and comme
 | P1 | Add technician turn rating | Stored locally and included in evaluation export |
 | P2 | Optional semantic retrieval | Adopt only if it fixes measured FTS misses |
 | P2 | Windows packaging | One-file Lite installer, signed field release, and offline recovery instructions |
+
+## September 4 integration decisions
+
+- Treat authorized BitLocker unlock and customer-data copying as a recorded
+  `caution` intervention. Key retrieval, authorization, and key-ID matching are
+  information-gathering steps and never technical access.
+- Allow one constrained, audited repair after a deterministic guard rejection.
+  Use the same guard set and total time budget; hard-stop on provider, timeout,
+  schema, or second-attempt failure.
+- Use Qwen3-30B-A3B Q4_K_M as the 64 GB quality candidate and Qwen3 8B as the
+  fallback/control. Do not auto-select by installed RAM; promote only from
+  controlled cold/warm benchmark evidence.
+- Keep symptom routing conflict-aware and bounded. Mixed cases may retrieve
+  several directly relevant cards; ambiguous cases use FTS.
+- Ship the reviewed 16-card field pack in the Windows bundle and keep its
+  manifest version synchronized with desktop ingestion.
+
+The main remaining P0 validation work is to collect repeated raw benchmark
+JSONL runs, trained-technician ratings, and a signed Windows offline smoke run.
+Those gates—not a single successful model session—determine whether a model or
+hardware profile is field-ready.

@@ -36,6 +36,7 @@
             Customer complaint
             <textarea id="case-complaint" required rows="6" maxlength="8000" placeholder="Describe what the customer reported in their own words."></textarea>
           </label>
+          <p class="privacy-note">Never paste passwords or BitLocker recovery keys. Have the customer enter secrets privately in the trusted system prompt.</p>
           <label>
             Device / OS <span>optional</span>
             <input id="case-device" maxlength="300" placeholder="Dell Latitude, Windows 11">
@@ -90,6 +91,7 @@
                 </div>
                 <form id="observation-form">
                   <textarea id="observation-text" required rows="3" maxlength="8000" placeholder="Example: Drops happen on Wi-Fi only; Ethernet stayed connected for 15 minutes."></textarea>
+                  <p class="privacy-note">Do not record passwords or recovery keys.</p>
                   <div class="form-footer">
                     <span>Saved before the model reasons.</span>
                     <button class="primary" type="submit">Record &amp; reassess</button>

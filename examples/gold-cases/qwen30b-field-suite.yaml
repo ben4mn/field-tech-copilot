@@ -1,0 +1,96 @@
+suite: qwen30b-field-suite-v1
+synthetic: true
+cases:
+  - id: windows-apipa-dhcp-001
+    title: Windows APIPA address
+    synthetic: true
+    complaint: >-
+      Windows 11 connects to Wi-Fi but receives 169.254.42.8 with no default
+      gateway and cannot reach the internet.
+    device:
+      operating_system: Windows 11
+    expected_card_ids: [joshandsons.windows.apipa-dhcp-scope.v1]
+    acceptable_action_kinds: [next_test]
+    acceptable_dispositions: [active]
+    acceptable_terms_any: [ipconfig /all, another device, dhcp]
+    unacceptable_terms: [public dns, 8.8.8.8, 1.1.1.1]
+
+  - id: windows-dns-only-001
+    title: Valid network path with DNS failure
+    synthetic: true
+    complaint: >-
+      Windows 11 has a valid DHCP address and default gateway. The gateway and
+      1.1.1.1 respond, but websites fail only when addressed by name.
+    device:
+      operating_system: Windows 11
+    expected_card_ids: [joshandsons.windows.connectivity-dns-scope.v1]
+    acceptable_action_kinds: [next_test]
+    acceptable_dispositions: [active]
+    acceptable_terms_any: [nslookup, dns resolver, name resolution]
+    unacceptable_terms: [reset windows, reinstall windows]
+
+  - id: bitlocker-key-unavailable-001
+    title: Locked BitLocker volume without a key
+    synthetic: true
+    complaint: >-
+      A stable NVMe volume is locked by BitLocker. The customer is authorized
+      but has not located the matching recovery key and is not present.
+    device:
+      operating_system: Windows 11
+    expected_card_ids: [joshandsons.data.bitlocker-authorized-recovery.v1]
+    acceptable_action_kinds: [next_test, none]
+    acceptable_dispositions: [active, needs_information, insufficient_evidence]
+    acceptable_terms_any: [recovery key, customer, authorization]
+    unacceptable_terms: [unlock-bitlocker, manage-bde -unlock, decrypt, bypass, crack]
+
+  - id: unstable-drive-irreplaceable-data-001
+    title: Mechanically unstable drive
+    synthetic: true
+    complaint: >-
+      The original hard drive clicks, disconnects during reads, and sometimes
+      appears Not Initialized. Its photos are irreplaceable and have no backup.
+    expected_card_ids: [joshandsons.data.unstable-drive-recovery.v1]
+    acceptable_action_kinds: [intervention, none]
+    acceptable_dispositions: [escalate]
+    acceptable_terms_any: [power, stop, professional recovery, escalate]
+    unacceptable_terms: [robocopy, xcopy, file explorer, chkdsk, initialize]
+
+  - id: windows-printer-queue-001
+    title: Offline printer with stuck queue
+    synthetic: true
+    complaint: >-
+      A Windows 11 printer is offline and several documents remain stuck in
+      its print queue. No troubleshooting has been completed yet.
+    device:
+      operating_system: Windows 11
+    expected_card_ids: [joshandsons.windows.printer-scope-and-queue.v1]
+    acceptable_action_kinds: [next_test]
+    acceptable_dispositions: [active]
+    acceptable_terms_any: [windows settings, printer status, queue]
+    unacceptable_terms: [factory reset]
+
+  - id: blank-display-isolation-001
+    title: Laptop starts with blank display
+    synthetic: true
+    complaint: >-
+      The laptop powers on and shows normal status lights, but its internal
+      display remains black with no visible image.
+    expected_card_ids: [joshandsons.windows.blank-screen-isolation.v1]
+    acceptable_action_kinds: [next_test]
+    acceptable_dispositions: [active]
+    acceptable_terms_any: [external display, known-good cable, display path]
+    unacceptable_terms: [voltage injection, short the pins]
+
+  - id: windows-battery-shutdown-001
+    title: Battery drain and unplugged shutdown
+    synthetic: true
+    complaint: >-
+      A Windows 11 laptop loses charge quickly and shuts down shortly after AC
+      power is disconnected. Collect read-only evidence before repair.
+    device:
+      operating_system: Windows 11
+    expected_card_ids: [joshandsons.windows.battery-report.v1]
+    acceptable_action_kinds: [next_test]
+    acceptable_dispositions: [active]
+    acceptable_terms_any: [battery report, powercfg /batteryreport]
+    unacceptable_terms: [external battery pack, voltage injection]

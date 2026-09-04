@@ -3,6 +3,7 @@ from __future__ import annotations
 import re
 from datetime import UTC, datetime
 from enum import StrEnum
+from hashlib import sha256
 from typing import Literal
 from uuid import uuid4
 
@@ -118,6 +119,12 @@ class CompletedTest(BaseModel):
 
 
 class Intervention(BaseModel):
+    id: str = Field(default_factory=lambda: new_id("intervention"))
+    key: str = Field(
+        default="",
+        max_length=200,
+        description="Stable intervention key, for example unlock-authorized-bitlocker-volume",
+    )
     title: str = Field(min_length=1, max_length=500)
     rationale: str = Field(min_length=1, max_length=2_000)
     steps: list[str] = Field(min_length=1, max_length=30)
@@ -126,10 +133,27 @@ class Intervention(BaseModel):
     prerequisites: list[str] = Field(default_factory=list, max_length=20)
     rollback: str | None = Field(default=None, max_length=2_000)
     requires_confirmation: bool = False
+    repeat_reason: str | None = Field(default=None, max_length=1_000)
     cited_card_ids: list[str] = Field(default_factory=list, max_length=12)
+
+    @model_validator(mode="before")
+    @classmethod
+    def add_stable_legacy_id(cls, value: object) -> object:
+        if isinstance(value, dict) and not value.get("id"):
+            identity = action_fingerprint(str(value.get("key") or value.get("title") or ""))
+            if identity:
+                value = {
+                    **value,
+                    "id": f"intervention_legacy_{sha256(identity.encode()).hexdigest()[:12]}",
+                }
+        return value
 
     @model_validator(mode="after")
     def validate_risk_controls(self) -> Intervention:
+        self.key = action_fingerprint(self.key or self.title)
+        # Keep historical CAUTION interventions readable. New assessments pass
+        # through validate_assessment(), which enforces these controls for every
+        # non-safe intervention before persistence.
         if self.risk == RiskLevel.DESTRUCTIVE:
             if not self.requires_confirmation:
                 raise ValueError("destructive interventions must require confirmation")
@@ -140,6 +164,14 @@ class Intervention(BaseModel):
                     "destructive interventions must state rollback or explicitly state none"
                 )
         return self
+
+
+class CompletedIntervention(BaseModel):
+    intervention: Intervention
+    result: str = Field(min_length=1, max_length=8_000)
+    outcome: Literal["pass", "fail", "inconclusive", "blocked", "other"] = "other"
+    technician_confirmed: bool = False
+    completed_at: datetime = Field(default_factory=utc_now)
 
 
 class Citation(BaseModel):
@@ -181,6 +213,7 @@ class DiagnosticCase(BaseModel):
     status: CaseStatus = CaseStatus.ACTIVE
     observations: list[Observation] = Field(default_factory=list)
     completed_tests: list[CompletedTest] = Field(default_factory=list)
+    completed_interventions: list[CompletedIntervention] = Field(default_factory=list)
     assessment: Assessment | None = None
     last_error: str | None = None
     created_at: datetime = Field(default_factory=utc_now)
@@ -190,3 +223,10 @@ class DiagnosticCase(BaseModel):
     def completed_test_keys(self) -> set[str]:
         return {item.proposal.key for item in self.completed_tests}
 
+    @property
+    def completed_intervention_ids(self) -> set[str]:
+        return {item.intervention.id for item in self.completed_interventions}
+
+    @property
+    def completed_intervention_keys(self) -> set[str]:
+        return {item.intervention.key for item in self.completed_interventions}

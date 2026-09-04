@@ -16,10 +16,23 @@ class MockDiagnosticModel:
 
     name = "mock"
 
+    def __init__(self) -> None:
+        self.last_metrics: dict[str, object] = {"synthetic_provider": True}
+        self.metrics_history: list[dict[str, object]] = []
+
     def health(self) -> tuple[bool, str]:
         return True, "Demo reasoning fixture is ready; no diagnostic model is loaded"
 
-    def assess(self, case: DiagnosticCase, knowledge: list[KnowledgeSnippet]) -> Assessment:
+    def assess(
+        self,
+        case: DiagnosticCase,
+        knowledge: list[KnowledgeSnippet],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> Assessment:
+        self.last_metrics = {"synthetic_provider": True}
+        self.metrics_history.append(self.last_metrics)
+        self.metrics_history = self.metrics_history[-8:]
         candidates = [
             TestProposal(
                 key="scope-the-reported-failure",
@@ -88,9 +101,7 @@ class MockDiagnosticModel:
                 "Start with the proposed low-risk scoping step and record the result. "
                 "Switch to a local model for real diagnostic assistance."
             ),
-            disposition=(
-                Disposition.ACTIVE if next_test else Disposition.INSUFFICIENT_EVIDENCE
-            ),
+            disposition=(Disposition.ACTIVE if next_test else Disposition.INSUFFICIENT_EVIDENCE),
             hypotheses=[
                 Hypothesis(
                     label="The fault domain is not yet localized",

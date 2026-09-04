@@ -10,11 +10,14 @@ This repository is an early MVP foundation. It is decision support for a trained
 
 - Runs as a local browser application bound to `127.0.0.1`.
 - Saves and resumes cases in a local SQLite database.
-- Tracks the complaint, observations, completed tests, results, and ranked hypotheses.
-- Proposes exactly one next-best test and explains why it is useful.
+- Tracks the complaint, observations, completed tests and interventions, results, and ranked hypotheses.
+- Proposes exactly one next-best test or controlled intervention and explains why it is useful.
 - Rejects repeat tests unless the model provides a specific reason to repeat one.
-- Requires warnings and technician confirmation for destructive or data-risking procedures.
-- Retrieves locally indexed procedure cards and only exposes citations that were actually retrieved.
+- Invalidates stale actions before new evidence or model work, and fails closed on timeouts or invalid output.
+- Allows one bounded, audited repair attempt after a deterministic guard rejection; provider failures are not retried.
+- Requires prerequisites, rollback, and technician confirmation for non-safe interventions.
+- Rejects BitLocker recovery keys from case storage and prompts the customer to enter them privately.
+- Retrieves a bounded set of locally indexed procedure cards and only exposes citations that were actually retrieved.
 - Exports a concise Markdown case summary.
 - Supports a mock model for development, Ollama for a larger local model, and a
   protected llama.cpp adapter for the bundled Windows Field Kit Lite.
@@ -27,7 +30,7 @@ this repository. Field Kit Lite bundles:
 - the application and its Python runtime;
 - a pinned llama.cpp CPU runtime;
 - the official Apache-2.0 Qwen3-1.7B Q8_0 GGUF;
-- synthetic starter knowledge and third-party license files; and
+- synthetic starter knowledge, the 16-card field procedure pack, and third-party license files; and
 - a release checksum and machine-readable bundle manifest.
 
 After the installer is downloaded, setup and the core case workflow do not need
@@ -71,10 +74,12 @@ uv run fieldtech serve --provider ollama --model qwen3:8b
 
 ### Full local AI profile
 
-The model is deliberately configurable. Keep Qwen3 8B as the higher-quality
-baseline and benchmark alternatives against the same gold cases before changing
-hardware or committing to a model. This profile requires a separate model
-download before going offline and is not part of the one-file Lite installer.
+The model is deliberately configurable. Keep Qwen3 8B as the fallback and
+comparison control. On the tested 64 GB dual-channel Latitude 5550,
+Qwen3-30B-A3B Q4_K_M is the quality candidate, but it must be compared through
+the repository benchmark before promotion on another machine. This profile
+requires a separate model download before going offline and is not part of the
+one-file Lite installer.
 
 ## Commands
 
@@ -91,6 +96,29 @@ uv run fieldtech doctor
 # Run the test suite
 uv run pytest
 ```
+
+Run the synthetic seven-case benchmark with the configured real provider. This
+PowerShell example uses LM Studio; replace the identity values with the exact
+local artifacts:
+
+```powershell
+$env:FIELDTECH_MODEL_PROVIDER = "llama_cpp"
+$env:FIELDTECH_MODEL_BASE_URL = "http://127.0.0.1:1234/v1"
+$env:FIELDTECH_MODEL_NAME = "qwen/qwen3-30b-a3b-2507"
+$env:FIELDTECH_MODEL_TIMEOUT_SECONDS = "300"
+$env:FIELDTECH_MODEL_REASONING_EFFORT = "low"
+uv run python scripts/benchmark_cases.py `
+  examples/gold-cases/qwen30b-field-suite.yaml `
+  --output "$env:TEMP\fieldtech-warm.jsonl" `
+  --run-kind warm `
+  --runtime-version "LM Studio <exact-version>" `
+  --model-sha256 "<exact-64-character-SHA256>" `
+  --strict
+```
+
+The benchmark refuses an accidental mock-provider run. A cold sample is one
+freshly unloaded/restarted model request and therefore requires one `--case-id`
+plus a truthful `--cold-start-method`; see [the evaluation plan](docs/EVALUATION.md).
 
 Configuration is read from `FIELDTECH_*` environment variables; see [.env.example](.env.example). The application never reads `.env` by itself, so use your shell, a launcher, or `uv run --env-file .env ...` to load it.
 

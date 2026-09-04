@@ -11,7 +11,7 @@ topics:
 risk: safe
 source_title: Microsoft Automatic Private IP Addressing guidance
 source_url: https://learn.microsoft.com/en-us/windows-server/troubleshoot/how-to-use-automatic-tcpip-addressing-without-a-dh
-verified_at: 2026-09-03
+verified_at: 2026-09-04
 review_after: 2027-03-03
 trust_tier: 1
 redistribution: paraphrased Microsoft networking guidance

@@ -1,4 +1,5 @@
 import json
+import sqlite3
 from pathlib import Path
 
 import pytest
@@ -226,3 +227,26 @@ def test_sensitive_test_result_is_rejected_before_case_storage(tmp_path: Path) -
     assert reloaded.completed_tests == []
     assert reloaded.assessment is not None
     assert reloaded.assessment.next_test is not None
+
+
+def test_provider_error_cannot_return_or_persist_a_recovery_key(tmp_path: Path) -> None:
+    recovery_key = "111111-222222-333333-444444-555555-666666-777777-888888"
+    service, database = _build_service(
+        tmp_path,
+        SequenceModel(RuntimeError(f"provider echoed {recovery_key}")),
+    )
+
+    case = service.create_case("BitLocker volume is locked")
+
+    assert recovery_key not in (case.last_error or "")
+    with sqlite3.connect(database.path) as connection:
+        state = connection.execute(
+            "SELECT state_json FROM cases WHERE id = ?",
+            (case.id,),
+        ).fetchone()[0]
+        payloads = connection.execute(
+            "SELECT payload_json FROM case_events WHERE case_id = ?",
+            (case.id,),
+        ).fetchall()
+    assert recovery_key not in state
+    assert all(recovery_key not in payload[0] for payload in payloads)

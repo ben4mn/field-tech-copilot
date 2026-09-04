@@ -11,13 +11,19 @@ topics:
 risk: caution
 source_title: Microsoft Find your BitLocker recovery key
 source_url: https://support.microsoft.com/en-us/windows/security/encryption/find-your-bitlocker-recovery-key
-verified_at: 2026-09-02
+verified_at: 2026-09-04
 review_after: 2027-03-01
 trust_tier: 1
 redistribution: paraphrased Microsoft recovery guidance
 platforms:
   - Windows 11
 requires_elevation: false
+prerequisites:
+  - Verify customer ownership or authorization and record the approved folder scope without recording the recovery key.
+  - Have the customer privately confirm that the displayed recovery-key ID matches their key.
+  - Confirm the drive is stable before unlocking or copying data.
+side_effects:
+  - Unlocking exposes customer data to the authorized Windows session until the volume is relocked or safely disconnected.
 rollback: Relock the volume or safely disconnect it; do not alter protectors, enable automatic unlocking, or decrypt the original drive.
 ---
 
@@ -49,8 +55,9 @@ The encryption key is the access requirement. SMART, Get-Disk, reliability, file
 
    The customer may instead need their organization's IT administrator.
 
-6. Have the customer provide only the matching 48-digit recovery key through an approved method.
-7. Do not store the key in case notes, screenshots, email, or chat logs.
+6. Have the customer compare the displayed key ID and privately enter the matching 48-digit key themselves into the trusted Windows BitLocker recovery prompt.
+7. Do not ask the customer to read, paste, send, or otherwise provide the recovery key to the technician.
+8. Do not store the key in case notes, screenshots, email, chat logs, prompts, or results.
 
 If the key cannot be obtained, stop and securely store or return the original drive. Do not bypass encryption or attempt credential cracking.
 
@@ -58,7 +65,7 @@ If the key cannot be obtained, stop and securely store or return the original dr
 
 Unlocking or accessing customer data is a CAUTION action and requires explicit technician confirmation.
 
-1. Confirm that the key ID matches the locked volume.
+1. Have the customer confirm that the key ID matches the locked volume without revealing the recovery key itself.
 2. Confirm the customer's approved folders and destination.
 3. Unlock the volume through the standard Windows BitLocker interface.
 4. Do not enable automatic unlocking, remove BitLocker protection, or decrypt the original drive.

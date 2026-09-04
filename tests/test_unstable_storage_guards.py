@@ -69,6 +69,50 @@ def test_file_copy_is_rejected_for_unstable_drive() -> None:
         validate_assessment(case, _file_copy_assessment())
 
 
+def test_no_action_cannot_hide_file_copy_in_summary() -> None:
+    case = DiagnosticCase(
+        title="Drive disappears",
+        complaint="The original drive is unstable and repeatedly disconnects.",
+    )
+    assessment = Assessment(
+        summary="Use Robocopy to copy the customer files from the original drive.",
+        technician_message="No structured action is proposed.",
+        disposition="escalate",
+    )
+
+    with pytest.raises(GuardrailViolation, match="File-level copy was proposed"):
+        validate_assessment(case, assessment)
+
+
+def test_no_action_cannot_hide_imaging_in_summary() -> None:
+    case = DiagnosticCase(
+        title="Drive disappears",
+        complaint="The original drive is unstable and repeatedly disconnects.",
+    )
+    assessment = Assessment(
+        summary="Image the drive before doing anything else.",
+        technician_message="No structured action is proposed.",
+        disposition="escalate",
+    )
+
+    with pytest.raises(GuardrailViolation, match="must be a caution intervention"):
+        validate_assessment(case, assessment)
+
+
+def test_negated_copy_language_is_allowed_without_an_action() -> None:
+    case = DiagnosticCase(
+        title="Drive disappears",
+        complaint="The original drive is unstable and repeatedly disconnects.",
+    )
+    assessment = Assessment(
+        summary="Do not use Robocopy or copy customer files from the original drive.",
+        technician_message="Stop and escalate to professional recovery.",
+        disposition="escalate",
+    )
+
+    assert validate_assessment(case, assessment) is assessment
+
+
 @pytest.mark.parametrize(
     "evidence_source",
     ["observation", "completed_test_result", "completed_intervention_result"],
@@ -184,6 +228,24 @@ def test_incomplete_or_unverified_artifact_does_not_bypass_guard(
         validate_assessment(case, assessment)
 
 
+def test_failed_artifact_outcome_overrides_optimistic_result_wording() -> None:
+    completed = _completed_test(
+        "The image completed and its checksum matched before the overall operation failed."
+    )
+    completed.outcome = "fail"
+    case = DiagnosticCase(
+        title="Failed recovery image",
+        complaint="The original disk is unstable and disconnects.",
+        completed_tests=[completed],
+    )
+
+    with pytest.raises(GuardrailViolation, match="File-level copy was proposed"):
+        validate_assessment(
+            case,
+            _file_copy_assessment("Copy customer files from the recovery image."),
+        )
+
+
 def test_file_copy_is_allowed_for_stable_mounted_volume() -> None:
     case = DiagnosticCase(
         title="Verified file transfer",
@@ -210,7 +272,43 @@ def test_unstable_network_does_not_mark_a_healthy_drive_unstable() -> None:
     assert validate_assessment(case, assessment) is assessment
 
 
-def test_sector_image_creation_is_not_mistaken_for_file_copy() -> None:
+@pytest.mark.parametrize(
+    "symptom",
+    [
+        "clicks during reads",
+        "makes a click during reads",
+        "makes clicking sounds during reads",
+        "is disappearing from Disk Management",
+        "keeps vanishing from Windows",
+        "goes offline during reads",
+        "went offline during reads",
+    ],
+)
+def test_common_unstable_drive_wording_blocks_copy_from_original(
+    symptom: str,
+) -> None:
+    case = DiagnosticCase(
+        title="Unstable drive",
+        complaint=f"The original drive {symptom} and has no backup.",
+    )
+
+    with pytest.raises(GuardrailViolation):
+        validate_assessment(case, _file_copy_assessment())
+
+
+def test_negated_clicking_does_not_mark_healthy_drive_unstable() -> None:
+    case = DiagnosticCase(
+        title="Healthy source",
+        complaint=(
+            "The healthy mounted drive is not clicking and has remained normally "
+            "readable for 30 minutes."
+        ),
+    )
+
+    assert validate_assessment(case, _file_copy_assessment()) is not None
+
+
+def test_sector_image_creation_requires_a_controlled_intervention() -> None:
     case = DiagnosticCase(
         title="Preserve unstable media",
         complaint="The original disk is unstable and has intermittent read errors.",
@@ -226,4 +324,182 @@ def test_sector_image_creation_is_not_mistaken_for_file_copy() -> None:
         ),
     )
 
+    with pytest.raises(GuardrailViolation, match="must be a caution intervention"):
+        validate_assessment(case, assessment)
+
+
+def test_controlled_imaging_is_allowed_with_all_required_controls() -> None:
+    case = DiagnosticCase(
+        title="Preserve unstable media",
+        complaint=(
+            "The original disk is unstable with intermittent read errors, but remains "
+            "continuously detected as a block device."
+        ),
+    )
+    intervention = Intervention(
+        key="controlled-image-original-drive",
+        title="Create a controlled sector image",
+        rationale="Preserve the source before logical recovery.",
+        steps=[
+            "Use GNU ddrescue with a persistent mapfile for one non-scraping pass."
+        ],
+        verification=["Confirm the image and mapfile exist before any extraction."],
+        risk=RiskLevel.CAUTION,
+        requires_confirmation=True,
+        prerequisites=[
+            "Record that the customer accepts the risk of further degradation or data loss.",
+            "Verify the source identity, model, serial, capacity, and device path.",
+            "Verify that the destination is healthy, empty, and larger than the source.",
+        ],
+        rollback="Stop imaging, preserve the image and mapfile, and power off the source.",
+    )
+    assessment = Assessment(
+        summary="The source is stable enough for one controlled imaging pass.",
+        technician_message="Create the controlled image after confirmation.",
+        intervention=intervention,
+    )
+
     assert validate_assessment(case, assessment) is assessment
+
+
+def test_imaging_is_rejected_for_severe_mechanical_failure_and_unique_data() -> None:
+    case = DiagnosticCase(
+        title="Severe drive failure",
+        complaint=(
+            "The original hard drive clicks, repeatedly spins up and down, and contains "
+            "irreplaceable photos with no backup."
+        ),
+    )
+    assessment = Assessment(
+        summary="Attempt imaging.",
+        technician_message="Run the proposed imaging intervention.",
+        intervention=Intervention(
+            key="controlled-image-original-drive",
+            title="Create a controlled sector image",
+            rationale="Attempt preservation.",
+            steps=["Run GNU ddrescue against the original drive."],
+            verification=["Confirm the image exists."],
+            risk=RiskLevel.CAUTION,
+            requires_confirmation=True,
+            prerequisites=[
+                "Record that the customer accepts the data-loss risk.",
+                "Verify the source identity and serial number.",
+                "Verify that the destination is healthy, empty, and larger.",
+            ],
+            rollback="Stop imaging and power off the source.",
+        ),
+    )
+
+    with pytest.raises(GuardrailViolation, match="severe mechanical symptoms"):
+        validate_assessment(case, assessment)
+
+
+def _severe_irreplaceable_case() -> DiagnosticCase:
+    return DiagnosticCase(
+        title="Severe drive failure",
+        complaint=(
+            "The original hard drive clicks, repeatedly spins up and down, and contains "
+            "irreplaceable photos with no backup."
+        ),
+    )
+
+
+def test_severe_irreplaceable_drive_blocks_further_read_only_tests() -> None:
+    assessment = Assessment(
+        summary="Collect more health data before deciding whether to escalate.",
+        technician_message="Run the proposed storage test.",
+        next_test=Proposal(
+            key="inspect-drive-health",
+            title="Inspect drive health",
+            rationale="Collect another health signal.",
+            instructions=[
+                "Run Get-PhysicalDisk and Get-StorageReliabilityCounter against the "
+                "original drive."
+            ],
+        ),
+    )
+
+    with pytest.raises(GuardrailViolation, match="severe mechanical symptoms"):
+        validate_assessment(_severe_irreplaceable_case(), assessment)
+
+
+def test_negated_mechanical_symptom_does_not_force_severe_escalation() -> None:
+    case = DiagnosticCase(
+        title="Logically inaccessible drive",
+        complaint=(
+            "The drive shows Not Initialized but is not clicking and contains the "
+            "only copy of the photos."
+        ),
+    )
+    assessment = Assessment(
+        summary="Collect one read-only device-state snapshot.",
+        technician_message="Run Get-Disk without initializing the drive.",
+        next_test=Proposal(
+            key="inspect-disk-state",
+            title="Inspect disk state",
+            rationale="Distinguish logical state from severe mechanical failure.",
+            instructions=["Run Get-Disk and record the device state."],
+        ),
+    )
+
+    assert validate_assessment(case, assessment) is assessment
+
+
+def test_severe_irreplaceable_drive_blocks_continue_reading_narrative() -> None:
+    assessment = Assessment(
+        summary="Continue trying to read it before escalation.",
+        technician_message="No structured action is proposed.",
+        disposition="escalate",
+    )
+
+    with pytest.raises(GuardrailViolation, match="severe mechanical symptoms"):
+        validate_assessment(_severe_irreplaceable_case(), assessment)
+
+
+def test_severe_irreplaceable_drive_allows_power_off_escalation() -> None:
+    assessment = Assessment(
+        summary="Power the drive off and escalate to professional data recovery.",
+        technician_message="Do not continue reading or testing the original drive.",
+        disposition="escalate",
+    )
+
+    assert validate_assessment(_severe_irreplaceable_case(), assessment) is assessment
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Do not power off the drive. Escalate to professional recovery.",
+        "Power off is unnecessary. Escalate to professional recovery.",
+        "Power off the drive. Avoid professional recovery.",
+    ],
+)
+def test_severe_irreplaceable_drive_requires_affirmative_controls(
+    summary: str,
+) -> None:
+    assessment = Assessment(
+        summary=summary,
+        technician_message="No structured action is proposed.",
+        disposition="escalate",
+    )
+
+    with pytest.raises(GuardrailViolation, match="severe mechanical symptoms"):
+        validate_assessment(_severe_irreplaceable_case(), assessment)
+
+
+def test_severe_irreplaceable_drive_allows_only_power_off_intervention() -> None:
+    assessment = Assessment(
+        summary="Power the drive off and escalate to professional data recovery.",
+        technician_message="Power off the original drive and leave it disconnected.",
+        disposition="escalate",
+        intervention=Intervention(
+            key="power-off-failing-drive",
+            title="Power off the failing drive",
+            rationale="Prevent further mechanical degradation.",
+            steps=["Power the failing drive off and leave it disconnected."],
+            verification=["Confirm the drive is no longer spinning."],
+            risk=RiskLevel.SAFE,
+        ),
+    )
+
+    assert validate_assessment(_severe_irreplaceable_case(), assessment) is assessment

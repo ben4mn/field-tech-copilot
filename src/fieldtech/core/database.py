@@ -7,6 +7,11 @@ from contextlib import contextmanager
 from pathlib import Path
 
 from fieldtech.core.models import DiagnosticCase, utc_now
+from fieldtech.core.privacy import (
+    redact_json_document,
+    redact_sensitive_text,
+    redact_sensitive_value,
+)
 
 SCHEMA = """
 PRAGMA journal_mode=WAL;
@@ -79,6 +84,45 @@ class Database:
     def initialize(self) -> None:
         with self.connect() as connection:
             connection.executescript(SCHEMA)
+            self._scrub_sensitive_rows(connection)
+
+    @staticmethod
+    def _scrub_sensitive_rows(connection: sqlite3.Connection) -> None:
+        """Remove recognized recovery keys left by an earlier application build."""
+        scrubbed_case_ids: set[str] = set()
+        for row in connection.execute(
+            "SELECT id, title, state_json FROM cases"
+        ).fetchall():
+            title = redact_sensitive_text(row["title"])
+            state_json = redact_json_document(row["state_json"])
+            if title != row["title"] or state_json != row["state_json"]:
+                connection.execute(
+                    "UPDATE cases SET title = ?, state_json = ? WHERE id = ?",
+                    (title, state_json, row["id"]),
+                )
+                scrubbed_case_ids.add(row["id"])
+        for row in connection.execute(
+            "SELECT id, case_id, payload_json FROM case_events"
+        ).fetchall():
+            payload_json = redact_json_document(row["payload_json"])
+            if payload_json != row["payload_json"]:
+                connection.execute(
+                    "UPDATE case_events SET payload_json = ? WHERE id = ?",
+                    (payload_json, row["id"]),
+                )
+                scrubbed_case_ids.add(row["case_id"])
+        for case_id in scrubbed_case_ids:
+            connection.execute(
+                """
+                INSERT INTO case_events(case_id, event_type, payload_json, created_at)
+                VALUES (?, 'privacy.recovery_key_redacted', ?, ?)
+                """,
+                (
+                    case_id,
+                    json.dumps({"redacted": True}),
+                    utc_now().isoformat(),
+                ),
+            )
 
     def save_case(
         self,
@@ -100,9 +144,12 @@ class Database:
                 """,
                 (
                     case.id,
-                    case.title,
+                    redact_sensitive_text(case.title),
                     case.status.value,
-                    case.model_dump_json(),
+                    json.dumps(
+                        redact_sensitive_value(case.model_dump(mode="json")),
+                        ensure_ascii=False,
+                    ),
                     case.created_at.isoformat(),
                     case.updated_at.isoformat(),
                 ),
@@ -116,7 +163,11 @@ class Database:
                     (
                         case.id,
                         event_type,
-                        json.dumps(event_payload or {}, default=str),
+                        json.dumps(
+                            redact_sensitive_value(event_payload or {}),
+                            ensure_ascii=False,
+                            default=str,
+                        ),
                         utc_now().isoformat(),
                     ),
                 )
@@ -149,9 +200,12 @@ class Database:
                 WHERE id = ? AND updated_at = ?
                 """,
                 (
-                    case.title,
+                    redact_sensitive_text(case.title),
                     case.status.value,
-                    case.model_dump_json(),
+                    json.dumps(
+                        redact_sensitive_value(case.model_dump(mode="json")),
+                        ensure_ascii=False,
+                    ),
                     case.updated_at.isoformat(),
                     case.id,
                     expected_updated_at,
@@ -170,7 +224,11 @@ class Database:
                     (
                         case.id,
                         event_type,
-                        json.dumps(event_payload or {}, default=str),
+                        json.dumps(
+                            redact_sensitive_value(event_payload or {}),
+                            ensure_ascii=False,
+                            default=str,
+                        ),
                         utc_now().isoformat(),
                     ),
                 )
@@ -182,14 +240,25 @@ class Database:
             row = connection.execute(
                 "SELECT state_json FROM cases WHERE id = ?", (case_id,)
             ).fetchone()
-        return DiagnosticCase.model_validate_json(row["state_json"]) if row else None
+        return (
+            DiagnosticCase.model_validate_json(
+                redact_json_document(row["state_json"])
+            )
+            if row
+            else None
+        )
 
     def list_cases(self) -> list[DiagnosticCase]:
         with self.connect() as connection:
             rows = connection.execute(
                 "SELECT state_json FROM cases ORDER BY updated_at DESC"
             ).fetchall()
-        return [DiagnosticCase.model_validate_json(row["state_json"]) for row in rows]
+        return [
+            DiagnosticCase.model_validate_json(
+                redact_json_document(row["state_json"])
+            )
+            for row in rows
+        ]
 
     def delete_case(self, case_id: str) -> bool:
         with self.connect() as connection:

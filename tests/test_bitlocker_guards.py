@@ -92,14 +92,109 @@ def test_storage_health_test_is_rejected_when_bitlocker_key_is_missing() -> None
         validate_assessment(_locked_case(), assessment)
 
 
+def test_no_action_cannot_hide_unsafe_bitlocker_access_in_summary() -> None:
+    assessment = Assessment(
+        summary="Use the customer password to unlock BitLocker and copy their files.",
+        technician_message="No structured action is proposed.",
+        disposition="escalate",
+    )
+
+    with pytest.raises(
+        GuardrailViolation,
+        match="before an authorized recovery key was available",
+    ):
+        validate_assessment(_locked_case(), assessment)
+
+
+def test_negated_bitlocker_access_language_is_allowed_without_an_action() -> None:
+    assessment = Assessment(
+        summary="Do not unlock the volume or copy customer files without the key.",
+        technician_message="Wait for authorized private key retrieval.",
+        disposition="needs_information",
+    )
+
+    assert validate_assessment(_locked_case(), assessment) is assessment
+
+
+@pytest.mark.parametrize(
+    "summary",
+    [
+        "Ask anyone available to retrieve the BitLocker recovery key.",
+        "Retrieve the BitLocker recovery key from the account.",
+        "Have the customer retrieve the recovery key and tell it to the technician.",
+    ],
+)
+def test_no_action_key_retrieval_requires_authorized_private_control(
+    summary: str,
+) -> None:
+    assessment = Assessment(
+        summary=summary,
+        technician_message="Wait for more information.",
+        disposition="needs_information",
+    )
+
+    with pytest.raises(GuardrailViolation, match="only private, authorized"):
+        validate_assessment(_locked_case(), assessment)
+
+
+def test_no_action_private_customer_key_retrieval_guidance_is_allowed() -> None:
+    assessment = Assessment(
+        summary=(
+            "Have the customer privately retrieve the matching BitLocker recovery key "
+            "on a device they control without sharing credentials."
+        ),
+        technician_message="Wait for the authorized customer to finish privately.",
+        disposition="needs_information",
+    )
+
+    assert validate_assessment(_locked_case(), assessment) is assessment
+
+
+def test_negated_key_retrieval_mention_does_not_require_retrieval_controls() -> None:
+    assessment = Assessment(
+        summary="Do not retrieve or disclose the recovery key. Wait for the customer.",
+        technician_message="No action is proposed.",
+        disposition="needs_information",
+    )
+
+    assert validate_assessment(_locked_case(), assessment) is assessment
+
+
+def test_private_retrieval_cannot_disclose_key_to_technician() -> None:
+    assessment = Assessment(
+        summary=(
+            "Have the customer privately retrieve the BitLocker recovery key, then "
+            "show the recovery key to the technician."
+        ),
+        technician_message="Wait for more information.",
+        disposition="needs_information",
+    )
+
+    with pytest.raises(GuardrailViolation, match="retained sensitive"):
+        validate_assessment(_locked_case(), assessment)
+
+
 def test_private_customer_recovery_key_guidance_is_allowed() -> None:
     assessment = _assessment_with_test(
         "Have the customer sign in privately at https://aka.ms/myrecoverykey, "
-        "retrieve the matching recovery key, and enter it themselves. Do not "
+        "retrieve the matching recovery key on a device they control. Do not "
         "request their Microsoft password or record or retain the recovery key."
     )
 
     assert validate_assessment(_locked_case(), assessment) is assessment
+
+
+def test_key_retrieval_cannot_unlock_in_the_same_missing_key_step() -> None:
+    assessment = _assessment_with_test(
+        "Have the customer privately retrieve the matching recovery key and enter "
+        "it themselves to unlock the BitLocker volume."
+    )
+
+    with pytest.raises(
+        GuardrailViolation,
+        match="before an authorized recovery key was available",
+    ):
+        validate_assessment(_locked_case(), assessment)
 
 
 def test_key_retrieval_without_private_customer_control_is_rejected() -> None:
@@ -326,6 +421,17 @@ def test_safety_language_does_not_trigger_prohibited_change_guard() -> None:
     )
 
     assert validate_assessment(_authorized_locked_case(), assessment) is assessment
+
+
+def test_without_phrase_cannot_negate_a_later_destructive_action() -> None:
+    assessment = _authorized_intervention(
+        steps=[
+            "Copy files without a backup and then format the original drive."
+        ]
+    )
+
+    with pytest.raises(GuardrailViolation, match="decrypt the original"):
+        validate_assessment(_authorized_locked_case(), assessment)
 
 
 def test_non_bitlocker_auto_unlock_is_not_a_false_positive() -> None:

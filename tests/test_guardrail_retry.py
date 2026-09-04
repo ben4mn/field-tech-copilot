@@ -77,6 +77,22 @@ class FailingModel:
         raise RuntimeError("backend unavailable")
 
 
+class DeadlineAwareModel(GuardrailThenSafeModel):
+    def __init__(self) -> None:
+        super().__init__()
+        self.seen_timeouts: list[float | None] = []
+
+    def assess(
+        self,
+        case: DiagnosticCase,
+        knowledge: list[KnowledgeSnippet],
+        *,
+        timeout_seconds: float | None = None,
+    ) -> Assessment:
+        self.seen_timeouts.append(timeout_seconds)
+        return super().assess(case, knowledge)
+
+
 def _build_service(
     tmp_path: Path,
     model: DiagnosticModel,
@@ -107,6 +123,26 @@ def test_guardrail_rejection_retries_once_with_feedback(
     assert case.assessment is not None
     assert case.assessment.next_test is not None
     assert case.assessment.next_test.key == "inspect-ip-configuration"
+
+
+def test_guardrail_retry_passes_only_the_remaining_deadline_to_capable_provider(
+    tmp_path: Path,
+) -> None:
+    model = DeadlineAwareModel()
+    database = Database(tmp_path / "fieldtech.db")
+    database.initialize()
+    service = DiagnosticService(
+        database,
+        KnowledgeStore(database),
+        model,
+        guardrail_retry_budget_seconds=10,
+    )
+
+    service.create_case("Windows has a 169.254 APIPA address and no internet.")
+
+    assert model.seen_timeouts[0] is None
+    assert model.seen_timeouts[1] is not None
+    assert 0 < model.seen_timeouts[1] <= 10
 
 
 def test_non_guardrail_failure_is_not_retried(tmp_path: Path) -> None:

@@ -122,6 +122,61 @@ class Database:
                 )
         return case
 
+    def save_case_if_unmodified(
+        self,
+        case: DiagnosticCase,
+        expected_updated_at: str,
+        event_type: str | None = None,
+        event_payload: dict[str, object] | None = None,
+    ) -> DiagnosticCase | None:
+        """Persist a case only when nobody has changed it since it was loaded.
+
+        The conditional update and its audit event share one transaction. This is
+        used for completing proposed actions, where a normal read-then-write could
+        otherwise accept two submissions for the same proposal.
+        """
+        previous_updated_at = case.updated_at
+        case.updated_at = utc_now()
+
+        with self.connect() as connection:
+            cursor = connection.execute(
+                """
+                UPDATE cases SET
+                    title = ?,
+                    status = ?,
+                    state_json = ?,
+                    updated_at = ?
+                WHERE id = ? AND updated_at = ?
+                """,
+                (
+                    case.title,
+                    case.status.value,
+                    case.model_dump_json(),
+                    case.updated_at.isoformat(),
+                    case.id,
+                    expected_updated_at,
+                ),
+            )
+            if cursor.rowcount != 1:
+                case.updated_at = previous_updated_at
+                return None
+
+            if event_type:
+                connection.execute(
+                    """
+                    INSERT INTO case_events(case_id, event_type, payload_json, created_at)
+                    VALUES (?, ?, ?, ?)
+                    """,
+                    (
+                        case.id,
+                        event_type,
+                        json.dumps(event_payload or {}, default=str),
+                        utc_now().isoformat(),
+                    ),
+                )
+
+        return case
+
     def get_case(self, case_id: str) -> DiagnosticCase | None:
         with self.connect() as connection:
             row = connection.execute(
